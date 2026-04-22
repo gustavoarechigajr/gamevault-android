@@ -36,29 +36,22 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-
     val state by vm.state.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.init(context) }
-    LaunchedEffect(state.loggedIn) {
-        if (state.loggedIn) onLoginSuccess()
-    }
+    LaunchedEffect(state.loggedIn) { if (state.loggedIn) onLoginSuccess() }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF06091A), Color(0xFF0C1228))
-                )
-            )
-            .imePadding(),  // shift content above keyboard
+            .background(Brush.verticalGradient(colors = listOf(Color(0xFF06091A), Color(0xFF0C1228))))
+            .imePadding(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())  // scroll if keyboard still overlaps
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 32.dp)
                 .padding(vertical = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -83,7 +76,7 @@ fun LoginScreen(
                 value = state.serverUrl,
                 onValueChange = vm::onServerUrlChange,
                 label = { Text("Server URL") },
-                placeholder = { Text("http://10.0.0.10:5000") },
+                placeholder = { Text("https://yourserver.duckdns.org") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -125,6 +118,25 @@ fun LoginScreen(
                 shape = RoundedCornerShape(12.dp),
                 colors = gvTextFieldColors(),
             )
+
+            // Remember me
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Remember me", color = Color(0xFF7090B8), fontSize = 14.sp)
+                Switch(
+                    checked = state.rememberMe,
+                    onCheckedChange = vm::onRememberMeChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = GVRed,
+                        uncheckedThumbColor = Color(0xFF7090B8),
+                        uncheckedTrackColor = Color(0xFF1C2A44),
+                    ),
+                )
+            }
 
             if (state.error.isNotBlank()) {
                 Text(state.error, color = GVRed, fontSize = 13.sp)

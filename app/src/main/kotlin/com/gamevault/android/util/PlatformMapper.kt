@@ -43,4 +43,6 @@ object PlatformMapper {
     )
 
     fun getFolderName(platformId: String): String = map[platformId] ?: platformId
+
+    fun allFolderNames(): List<String> = map.values.distinct().sorted()
 }

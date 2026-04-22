@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gamevault.android.data.api.ApiClient
+import com.gamevault.android.data.model.LoginRequest
 import com.gamevault.android.ui.games.GamesScreen
 import com.gamevault.android.ui.login.LoginScreen
 import com.gamevault.android.ui.platforms.PlatformsScreen
@@ -40,27 +41,42 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 var startDest by remember { mutableStateOf<String?>(null) }
 
-                // Verify session on every launch instead of trusting saved username alone
                 LaunchedEffect(Unit) {
-                    val serverUrl = dataStore.data.map { it[Prefs.SERVER_URL] ?: "" }.first()
-                    val username = dataStore.data.map { it[Prefs.USERNAME] ?: "" }.first()
+                    val prefs    = dataStore.data.first()
+                    val remote   = prefs[Prefs.SERVER_URL]     ?: ""
+                    val local    = prefs[Prefs.LOCAL_URL]      ?: ""
+                    val username = prefs[Prefs.USERNAME]       ?: ""
+                    val password = prefs[Prefs.SAVED_PASSWORD] ?: ""
+                    val remember = prefs[Prefs.REMEMBER_ME]    ?: false
 
-                    startDest = if (serverUrl.isBlank() || username.isBlank()) {
-                        "login"
-                    } else {
-                        try {
-                            val response = ApiClient.getApi(serverUrl).me()
-                            if (response.isSuccessful) "platforms" else "login"
-                        } catch (e: Exception) {
-                            // Server unreachable — go to login so the user can see the error
-                            // and retry, rather than silently failing on the platforms screen
-                            "login"
-                        }
+                    if (remote.isBlank() || username.isBlank()) {
+                        startDest = "login"
+                        return@LaunchedEffect
                     }
+
+                    try {
+                        val api = ApiClient.getApiSmart(remote, local)
+
+                        // Session still valid — go straight in
+                        if (api.me().isSuccessful) {
+                            startDest = "platforms"
+                            return@LaunchedEffect
+                        }
+
+                        // Session expired — auto-login if remember me is on
+                        if (remember && password.isNotBlank()) {
+                            val login = api.login(LoginRequest(username, password))
+                            if (login.isSuccessful && login.body()?.ok == true) {
+                                startDest = "platforms"
+                                return@LaunchedEffect
+                            }
+                        }
+                    } catch (_: Exception) {}
+
+                    startDest = "login"
                 }
 
                 if (startDest == null) {
-                    // Splash while we check the session
                     Box(
                         modifier = Modifier.fillMaxSize().background(GVBackground),
                         contentAlignment = Alignment.Center,
@@ -80,7 +96,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("platforms") {
                             PlatformsScreen(
-                                onPlatformClick = { platformId -> navController.navigate("games/$platformId") },
+                                onPlatformClick = { navController.navigate("games/$it") },
                                 onSettingsClick = { navController.navigate("settings") },
                                 onLogout = {
                                     navController.navigate("login") {

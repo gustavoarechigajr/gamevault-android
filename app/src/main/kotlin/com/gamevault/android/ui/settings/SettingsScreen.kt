@@ -4,7 +4,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
@@ -13,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,9 +38,7 @@ fun SettingsScreen(
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        uri?.let { vm.onRomsRootPicked(context, it.toString()) }
-    }
+    ) { uri -> uri?.let { vm.onRomsRootPicked(context, it.toString()) } }
 
     Scaffold(
         containerColor = GVBackground,
@@ -57,32 +58,48 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Server URL
+            // ── Server ────────────────────────────────────────────────────────
             SettingSection(title = "Server") {
                 OutlinedTextField(
                     value = state.serverUrl,
                     onValueChange = vm::onServerUrlChange,
-                    label = { Text("Server URL") },
+                    label = { Text("Remote URL") },
+                    placeholder = { Text("https://yourserver.duckdns.org") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = gvFieldColors(),
                 )
+                OutlinedTextField(
+                    value = state.localUrl,
+                    onValueChange = vm::onLocalUrlChange,
+                    label = { Text("Local URL (optional)") },
+                    placeholder = { Text("http://10.0.0.10:5000") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = gvFieldColors(),
+                )
+                Text(
+                    text = "When on your home network the app will try the local URL first, then fall back to the remote URL automatically.",
+                    color = Color(0xFF7090B8),
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                )
                 Button(
-                    onClick = { vm.saveServerUrl(context) },
+                    onClick = { vm.saveUrls(context) },
                     colors = ButtonDefaults.buttonColors(containerColor = GVRed),
                     shape = RoundedCornerShape(10.dp),
-                ) {
-                    Text("Save")
-                }
+                ) { Text("Save") }
             }
 
             HorizontalDivider(color = Color(0xFF1C2A44))
 
-            // ROMs Root
+            // ── ROMs Folder ───────────────────────────────────────────────────
             SettingSection(title = "ROMs Folder") {
                 Text(
                     text = if (state.romsRootUri.isBlank()) "No folder selected" else state.romsRootUri,
@@ -93,16 +110,22 @@ fun SettingsScreen(
                 OutlinedButton(
                     onClick = { folderPicker.launch(null) },
                     shape = RoundedCornerShape(10.dp),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(GVRed)
-                    ),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(GVRed)),
                 ) {
                     Icon(Icons.Default.Folder, null, tint = GVRed, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Pick ROMs Root Folder", color = GVRed)
                 }
+                if (state.folderStatus.isNotBlank()) {
+                    Text(
+                        text = state.folderStatus,
+                        color = if (state.folderStatus.startsWith("Could")) GVRed else Color(0xFF22C55E),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
                 Text(
-                    text = "Select the Emulation/roms directory. Downloads will be sorted into the correct subfolder automatically.",
+                    text = "Select your Emulation/roms directory. All platform subfolders will be created automatically.",
                     color = Color(0xFF7090B8),
                     fontSize = 12.sp,
                     lineHeight = 17.sp,

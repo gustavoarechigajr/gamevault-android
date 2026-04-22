@@ -26,6 +26,7 @@ data class GameMeta(
     val title: String?,
     val description: String?,
     @SerializedName("cover_url") val coverUrl: String?,
+    @SerializedName("box_art_path") val boxArtPath: String?,
     val rating: String?,
     val genre: String?,
     val year: String?,

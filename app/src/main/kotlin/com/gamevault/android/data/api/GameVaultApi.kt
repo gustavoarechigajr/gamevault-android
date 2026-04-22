@@ -29,6 +29,9 @@ interface GameVaultApi {
     @GET("api/platform/{id}")
     suspend fun getPlatform(@Path("id") id: String): Response<PlatformResponse>
 
+    @GET("api/platform/{id}/metadata")
+    suspend fun getPlatformMetadata(@Path("id") id: String): Response<Map<String, Any?>>
+
     @GET("api/search")
     suspend fun search(
         @Query("q") query: String,

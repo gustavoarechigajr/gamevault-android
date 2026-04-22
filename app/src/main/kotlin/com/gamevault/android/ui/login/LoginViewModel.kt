@@ -17,6 +17,7 @@ data class LoginState(
     val serverUrl: String = "",
     val username: String = "",
     val password: String = "",
+    val rememberMe: Boolean = false,
     val loading: Boolean = false,
     val error: String = "",
     val loggedIn: Boolean = false,
@@ -27,17 +28,19 @@ class LoginViewModel : ViewModel() {
     val state = _state.asStateFlow()
 
     fun onServerUrlChange(v: String) = _state.update { it.copy(serverUrl = v, error = "") }
-    fun onUsernameChange(v: String) = _state.update { it.copy(username = v, error = "") }
-    fun onPasswordChange(v: String) = _state.update { it.copy(password = v, error = "") }
+    fun onUsernameChange(v: String)  = _state.update { it.copy(username = v, error = "") }
+    fun onPasswordChange(v: String)  = _state.update { it.copy(password = v, error = "") }
+    fun onRememberMeChange(v: Boolean) = _state.update { it.copy(rememberMe = v) }
 
-    // Pre-fill server URL and username so the user only needs to re-enter their password
     fun init(context: Context) {
         viewModelScope.launch {
             val prefs = context.dataStore.data.first()
             _state.update {
                 it.copy(
-                    serverUrl = prefs[Prefs.SERVER_URL] ?: "",
-                    username = prefs[Prefs.USERNAME] ?: "",
+                    serverUrl  = prefs[Prefs.SERVER_URL]     ?: "",
+                    username   = prefs[Prefs.USERNAME]       ?: "",
+                    password   = prefs[Prefs.SAVED_PASSWORD] ?: "",
+                    rememberMe = prefs[Prefs.REMEMBER_ME]    ?: false,
                 )
             }
         }
@@ -52,11 +55,14 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = "") }
             try {
-                val api = ApiClient.getApi(s.serverUrl.trim())
+                val prefs    = context.dataStore.data.first()
+                val localUrl = prefs[Prefs.LOCAL_URL] ?: ""
+                val api      = ApiClient.getApiSmart(s.serverUrl.trim(), localUrl)
                 val response = api.login(LoginRequest(s.username.trim(), s.password))
                 if (response.isSuccessful && response.body()?.ok == true) {
                     Prefs.setServerUrl(context, s.serverUrl.trim())
                     Prefs.setUser(context, s.username.trim(), "user")
+                    Prefs.saveCredentials(context, s.password, s.rememberMe)
                     _state.update { it.copy(loading = false, loggedIn = true) }
                 } else {
                     val msg = response.body()?.error ?: "Login failed (${response.code()})"
