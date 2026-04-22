@@ -1,5 +1,7 @@
 package com.gamevault.android.data.api
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
@@ -55,8 +57,10 @@ object ApiClient {
         if (localUrl.isNotBlank()) {
             val normalized = if (localUrl.endsWith("/")) localUrl else "$localUrl/"
             try {
-                val req = Request.Builder().url("${normalized}login").head().build()
-                probeClient.newCall(req).execute().close()
+                withContext(Dispatchers.IO) {
+                    val req = Request.Builder().url("${normalized}login").head().build()
+                    probeClient.newCall(req).execute().close()
+                }
                 // Any response (including 405 Method Not Allowed) means server reachable
                 return Pair(buildApi(localUrl, mainClient), localUrl.trimEnd('/'))
             } catch (_: Exception) {
