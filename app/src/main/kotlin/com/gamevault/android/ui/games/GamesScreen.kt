@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.gamevault.android.data.model.GameItem
 import com.gamevault.android.ui.theme.GVBackground
 import com.gamevault.android.ui.theme.GVRed
@@ -135,7 +136,10 @@ private fun GameRow(
         val coverUrl = game.meta?.coverUrl
         if (coverUrl != null) {
             AsyncImage(
-                model = coverUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(coverUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

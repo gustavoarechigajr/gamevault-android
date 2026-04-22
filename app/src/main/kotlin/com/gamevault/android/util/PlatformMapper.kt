@@ -1,5 +1,7 @@
 package com.gamevault.android.util
 
+import com.gamevault.android.R
+
 /**
  * Maps GameVault server platform IDs to EmulationStation / EmuDeck folder names.
  * The user's roms root is expected to follow the standard ES directory layout.
@@ -45,4 +47,32 @@ object PlatformMapper {
     fun getFolderName(platformId: String): String = map[platformId] ?: platformId
 
     fun allFolderNames(): List<String> = map.values.distinct().sorted()
+
+    fun getDrawableRes(platformId: String): Int? = when (platformId) {
+        "gba"              -> R.drawable.ic_platform_gba
+        "ps2"              -> R.drawable.ic_platform_ps2
+        "psx"              -> R.drawable.ic_platform_psx
+        "psp"              -> R.drawable.ic_platform_psp
+        "gamecube"         -> R.drawable.ic_platform_gamecube
+        "wii"              -> R.drawable.ic_platform_wii
+        "wiiu"             -> R.drawable.ic_platform_wiiu
+        "3ds"              -> R.drawable.ic_platform_3ds
+        "ds"               -> R.drawable.ic_platform_ds
+        "n64"              -> R.drawable.ic_platform_n64
+        "nes"              -> R.drawable.ic_platform_nes
+        "snes"             -> R.drawable.ic_platform_snes
+        "gb"               -> R.drawable.ic_platform_gb
+        "gbc"              -> R.drawable.ic_platform_gbc
+        "genesis", "megadrive" -> R.drawable.ic_platform_genesis
+        "sms"              -> R.drawable.ic_platform_sms
+        "gamegear"         -> R.drawable.ic_platform_gamegear
+        "switch"           -> R.drawable.ic_platform_switch
+        "atari2600"        -> R.drawable.ic_platform_atari2600
+        "atari7800"        -> R.drawable.ic_platform_atari7800
+        "jag"              -> R.drawable.ic_platform_jag
+        "lynx"             -> R.drawable.ic_platform_lynx
+        "tg16"             -> R.drawable.ic_platform_tg16
+        "sega32x"          -> R.drawable.ic_platform_sega32x
+        else               -> null
+    }
 }

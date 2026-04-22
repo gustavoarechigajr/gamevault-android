@@ -90,11 +90,16 @@ fun SettingsScreen(
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
                 )
-                Button(
-                    onClick = { vm.saveUrls(context) },
-                    colors = ButtonDefaults.buttonColors(containerColor = GVRed),
-                    shape = RoundedCornerShape(10.dp),
-                ) { Text("Save") }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = { vm.saveUrls(context) },
+                        colors = ButtonDefaults.buttonColors(containerColor = GVRed),
+                        shape = RoundedCornerShape(10.dp),
+                    ) { Text("Save") }
+                    if (state.urlsSaved) {
+                        Text("Saved!", color = Color(0xFF22C55E), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
             }
 
             HorizontalDivider(color = Color(0xFF1C2A44))

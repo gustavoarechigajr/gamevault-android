@@ -1,5 +1,6 @@
 package com.gamevault.android.ui.platforms
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,6 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gamevault.android.data.model.Platform
 import com.gamevault.android.ui.theme.GVBackground
 import com.gamevault.android.ui.theme.GVSurface
+import com.gamevault.android.util.PlatformMapper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,26 +95,36 @@ fun PlatformsScreen(
 private fun PlatformCard(platform: Platform, onClick: () -> Unit) {
     val accentColor = runCatching { Color(android.graphics.Color.parseColor(platform.color)) }
         .getOrDefault(Color(0xFF4ADE80))
+    val drawableRes = PlatformMapper.getDrawableRes(platform.id)
 
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(90.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(GVSurface)
             .clickable(onClick = onClick)
-            .padding(14.dp),
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(4.dp, 36.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(accentColor)
-                .align(Alignment.CenterStart)
-        )
-        Column(
-            modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp),
-        ) {
+        if (drawableRes != null) {
+            Image(
+                painter = painterResource(drawableRes),
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(4.dp, 36.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(accentColor)
+            )
+            Spacer(Modifier.width(2.dp))
+        }
+
+        Column {
             Text(
                 text = platform.name,
                 color = Color.White,

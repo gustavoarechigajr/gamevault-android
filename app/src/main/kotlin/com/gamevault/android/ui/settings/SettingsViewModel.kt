@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.gamevault.android.util.PlatformMapper
 import com.gamevault.android.util.Prefs
 import com.gamevault.android.util.dataStore
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -20,6 +21,7 @@ data class SettingsState(
     val localUrl: String = "",
     val romsRootUri: String = "",
     val folderStatus: String = "",
+    val urlsSaved: Boolean = false,
 )
 
 class SettingsViewModel : ViewModel() {
@@ -46,6 +48,9 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             Prefs.setServerUrl(context, _state.value.serverUrl.trim())
             Prefs.setLocalUrl(context, _state.value.localUrl.trim())
+            _state.update { it.copy(urlsSaved = true) }
+            delay(2000)
+            _state.update { it.copy(urlsSaved = false) }
         }
     }
 

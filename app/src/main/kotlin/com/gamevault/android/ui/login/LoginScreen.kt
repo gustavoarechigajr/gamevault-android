@@ -77,7 +77,7 @@ fun LoginScreen(
                     value = state.serverUrl,
                     onValueChange = vm::onServerUrlChange,
                     label = { Text("Server URL") },
-                    placeholder = { Text("https://yourserver.duckdns.org") },
+                    placeholder = { Text("https://yourserver.url") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
