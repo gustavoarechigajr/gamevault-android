@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.gamevault.android.data.api.ApiClient
 import com.gamevault.android.data.model.LoginRequest
 import com.gamevault.android.util.Prefs
+import com.gamevault.android.util.dataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -29,6 +30,19 @@ class LoginViewModel : ViewModel() {
     fun onUsernameChange(v: String) = _state.update { it.copy(username = v, error = "") }
     fun onPasswordChange(v: String) = _state.update { it.copy(password = v, error = "") }
 
+    // Pre-fill server URL and username so the user only needs to re-enter their password
+    fun init(context: Context) {
+        viewModelScope.launch {
+            val prefs = context.dataStore.data.first()
+            _state.update {
+                it.copy(
+                    serverUrl = prefs[Prefs.SERVER_URL] ?: "",
+                    username = prefs[Prefs.USERNAME] ?: "",
+                )
+            }
+        }
+    }
+
     fun login(context: Context) {
         val s = _state.value
         if (s.serverUrl.isBlank() || s.username.isBlank() || s.password.isBlank()) {
@@ -38,12 +52,10 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = "") }
             try {
-                val savedUrl = Prefs.serverUrl(context).first()
-                val url = s.serverUrl.ifBlank { savedUrl }
-                val api = ApiClient.getApi(url)
+                val api = ApiClient.getApi(s.serverUrl.trim())
                 val response = api.login(LoginRequest(s.username.trim(), s.password))
                 if (response.isSuccessful && response.body()?.ok == true) {
-                    Prefs.setServerUrl(context, url)
+                    Prefs.setServerUrl(context, s.serverUrl.trim())
                     Prefs.setUser(context, s.username.trim(), "user")
                     _state.update { it.copy(loading = false, loggedIn = true) }
                 } else {

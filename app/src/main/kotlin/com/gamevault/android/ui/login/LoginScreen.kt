@@ -2,9 +2,11 @@ package com.gamevault.android.ui.login
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -38,6 +40,7 @@ fun LoginScreen(
     val state by vm.state.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) { vm.init(context) }
     LaunchedEffect(state.loggedIn) {
         if (state.loggedIn) onLoginSuccess()
     }
@@ -49,18 +52,20 @@ fun LoginScreen(
                 Brush.verticalGradient(
                     colors = listOf(Color(0xFF06091A), Color(0xFF0C1228))
                 )
-            ),
-        contentAlignment = Alignment.Center,
+            )
+            .imePadding(),  // shift content above keyboard
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp),
+                .verticalScroll(rememberScrollState())  // scroll if keyboard still overlaps
+                .padding(horizontal = 32.dp)
+                .padding(vertical = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "Game​Vault",
+                text = "GameVault",
                 fontSize = 36.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White,
@@ -74,7 +79,6 @@ fun LoginScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            // Server URL
             OutlinedTextField(
                 value = state.serverUrl,
                 onValueChange = vm::onServerUrlChange,
@@ -88,7 +92,6 @@ fun LoginScreen(
                 colors = gvTextFieldColors(),
             )
 
-            // Username
             OutlinedTextField(
                 value = state.username,
                 onValueChange = vm::onUsernameChange,
@@ -101,7 +104,6 @@ fun LoginScreen(
                 colors = gvTextFieldColors(),
             )
 
-            // Password
             OutlinedTextField(
                 value = state.password,
                 onValueChange = vm::onPasswordChange,
