@@ -1,6 +1,5 @@
 package com.gamevault.android.ui.games
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,7 +7,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -106,11 +107,8 @@ fun GamesScreen(
                     items(displayedGames, key = { it.path }) { game ->
                         GameRow(
                             game = game,
-                            onDownload = {
-                                vm.download(context, game, platformId) { msg ->
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                }
-                            },
+                            downloadStatus = state.downloads[game.name],
+                            onDownload = { vm.download(context, game, platformId) },
                         )
                     }
                 }
@@ -120,7 +118,11 @@ fun GamesScreen(
 }
 
 @Composable
-private fun GameRow(game: GameItem, onDownload: () -> Unit) {
+private fun GameRow(
+    game: GameItem,
+    downloadStatus: DownloadStatus?,
+    onDownload: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,10 +167,57 @@ private fun GameRow(game: GameItem, onDownload: () -> Unit) {
                     fontSize = 12.sp,
                 )
             }
+            // Show progress bar while downloading
+            if (downloadStatus != null && !downloadStatus.done) {
+                Spacer(Modifier.height(4.dp))
+                if (downloadStatus.progress >= 0) {
+                    LinearProgressIndicator(
+                        progress = { downloadStatus.progress / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = GVRed,
+                        trackColor = Color(0xFF1C2A44),
+                    )
+                    Text(
+                        text = "${downloadStatus.progress}%",
+                        color = Color(0xFF7090B8),
+                        fontSize = 11.sp,
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = GVRed,
+                        trackColor = Color(0xFF1C2A44),
+                    )
+                }
+            }
+            if (downloadStatus?.done == true && downloadStatus.error != null) {
+                Text(
+                    text = downloadStatus.error,
+                    color = GVRed,
+                    fontSize = 11.sp,
+                )
+            }
         }
 
-        IconButton(onClick = onDownload) {
-            Icon(Icons.Default.Download, contentDescription = "Download", tint = GVRed)
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            when {
+                downloadStatus != null && !downloadStatus.done -> {
+                    // progress is shown in the column; nothing here
+                }
+                downloadStatus?.done == true && downloadStatus.error == null -> {
+                    Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded", tint = Color(0xFF4CAF50))
+                }
+                downloadStatus?.done == true && downloadStatus.error != null -> {
+                    IconButton(onClick = onDownload) {
+                        Icon(Icons.Default.ErrorOutline, contentDescription = "Retry", tint = GVRed)
+                    }
+                }
+                else -> {
+                    IconButton(onClick = onDownload) {
+                        Icon(Icons.Default.Download, contentDescription = "Download", tint = GVRed)
+                    }
+                }
+            }
         }
     }
 }

@@ -25,17 +25,23 @@ data class GameItem(
 data class GameMeta(
     val title: String?,
     val description: String?,
-    @SerializedName("cover_url") val coverUrl: String?,
+    // Resolved full URL, built from boxArtPath at load time
+    val coverUrl: String?,
+)
+
+// Mirrors the DB row returned by /api/platform/<id>/metadata
+data class MetadataRow(
+    val title: String?,
+    val description: String?,
     @SerializedName("box_art_path") val boxArtPath: String?,
     val rating: String?,
     val genre: String?,
     val year: String?,
+    @SerializedName("platform_id") val platformId: String?,
+    val filename: String?,
 )
 
 data class LoginRequest(val username: String, val password: String)
-
 data class LoginResponse(val ok: Boolean?, val error: String?)
-
 data class MeResponse(val id: Int, val username: String, val role: String)
-
 data class PlatformResponse(val platform: Platform, val items: List<GameItem>)

@@ -72,18 +72,20 @@ fun LoginScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = state.serverUrl,
-                onValueChange = vm::onServerUrlChange,
-                label = { Text("Server URL") },
-                placeholder = { Text("https://yourserver.duckdns.org") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                shape = RoundedCornerShape(12.dp),
-                colors = gvTextFieldColors(),
-            )
+            if (!state.urlSaved) {
+                OutlinedTextField(
+                    value = state.serverUrl,
+                    onValueChange = vm::onServerUrlChange,
+                    label = { Text("Server URL") },
+                    placeholder = { Text("https://yourserver.duckdns.org") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = gvTextFieldColors(),
+                )
+            }
 
             OutlinedTextField(
                 value = state.username,

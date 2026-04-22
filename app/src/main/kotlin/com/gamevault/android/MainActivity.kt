@@ -30,7 +30,6 @@ import com.gamevault.android.ui.theme.GameVaultTheme
 import com.gamevault.android.util.Prefs
 import com.gamevault.android.util.dataStore
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,7 +54,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     try {
-                        val api = ApiClient.getApiSmart(remote, local)
+                        val (api, _) = ApiClient.getApiSmart(remote, local)
 
                         // Session still valid — go straight in
                         if (api.me().isSuccessful) {

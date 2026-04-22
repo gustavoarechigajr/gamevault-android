@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.gamevault.android.data.api.ApiClient
 import com.gamevault.android.data.model.Platform
 import com.gamevault.android.util.Prefs
+import com.gamevault.android.util.dataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -26,8 +27,10 @@ class PlatformsViewModel : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = "") }
             try {
-                val url = Prefs.serverUrl(context).first()
-                val api = ApiClient.getApi(url)
+                val prefs  = context.dataStore.data.first()
+                val remote = prefs[Prefs.SERVER_URL] ?: ""
+                val local  = prefs[Prefs.LOCAL_URL]  ?: ""
+                val (api, _) = ApiClient.getApiSmart(remote, local)
                 val response = api.getPlatforms()
                 if (response.isSuccessful) {
                     _state.update { it.copy(loading = false, platforms = response.body() ?: emptyList()) }
@@ -43,8 +46,11 @@ class PlatformsViewModel : ViewModel() {
     fun logout(context: Context, onDone: () -> Unit) {
         viewModelScope.launch {
             try {
-                val url = Prefs.serverUrl(context).first()
-                ApiClient.getApi(url).logout()
+                val prefs  = context.dataStore.data.first()
+                val remote = prefs[Prefs.SERVER_URL] ?: ""
+                val local  = prefs[Prefs.LOCAL_URL]  ?: ""
+                val (api, _) = ApiClient.getApiSmart(remote, local)
+                api.logout()
             } catch (_: Exception) {}
             ApiClient.clearSession()
             Prefs.clearUser(context)

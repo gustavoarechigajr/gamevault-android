@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 
 data class LoginState(
     val serverUrl: String = "",
+    val urlSaved: Boolean = false,  // true when URL was pre-loaded from DataStore
     val username: String = "",
     val password: String = "",
     val rememberMe: Boolean = false,
@@ -35,9 +36,11 @@ class LoginViewModel : ViewModel() {
     fun init(context: Context) {
         viewModelScope.launch {
             val prefs = context.dataStore.data.first()
+            val savedUrl = prefs[Prefs.SERVER_URL] ?: ""
             _state.update {
                 it.copy(
-                    serverUrl  = prefs[Prefs.SERVER_URL]     ?: "",
+                    serverUrl  = savedUrl,
+                    urlSaved   = savedUrl.isNotBlank(),
                     username   = prefs[Prefs.USERNAME]       ?: "",
                     password   = prefs[Prefs.SAVED_PASSWORD] ?: "",
                     rememberMe = prefs[Prefs.REMEMBER_ME]    ?: false,
@@ -57,7 +60,7 @@ class LoginViewModel : ViewModel() {
             try {
                 val prefs    = context.dataStore.data.first()
                 val localUrl = prefs[Prefs.LOCAL_URL] ?: ""
-                val api      = ApiClient.getApiSmart(s.serverUrl.trim(), localUrl)
+                val (api, _) = ApiClient.getApiSmart(s.serverUrl.trim(), localUrl)
                 val response = api.login(LoginRequest(s.username.trim(), s.password))
                 if (response.isSuccessful && response.body()?.ok == true) {
                     Prefs.setServerUrl(context, s.serverUrl.trim())

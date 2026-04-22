@@ -1,9 +1,9 @@
 package com.gamevault.android.data.api
 
-import com.gamevault.android.data.model.GameItem
 import com.gamevault.android.data.model.LoginRequest
 import com.gamevault.android.data.model.LoginResponse
 import com.gamevault.android.data.model.MeResponse
+import com.gamevault.android.data.model.MetadataRow
 import com.gamevault.android.data.model.Platform
 import com.gamevault.android.data.model.PlatformResponse
 import okhttp3.ResponseBody
@@ -30,13 +30,7 @@ interface GameVaultApi {
     suspend fun getPlatform(@Path("id") id: String): Response<PlatformResponse>
 
     @GET("api/platform/{id}/metadata")
-    suspend fun getPlatformMetadata(@Path("id") id: String): Response<Map<String, Any?>>
-
-    @GET("api/search")
-    suspend fun search(
-        @Query("q") query: String,
-        @Query("platform") platform: String? = null,
-    ): Response<List<Any>>
+    suspend fun getPlatformMetadata(@Path("id") id: String): Response<Map<String, MetadataRow>>
 
     @GET("download")
     @Streaming
