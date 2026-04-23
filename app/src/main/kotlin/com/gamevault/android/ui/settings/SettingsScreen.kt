@@ -85,7 +85,7 @@ fun SettingsScreen(
                     colors = gvFieldColors(),
                 )
                 Text(
-                    text = "When on your home network the app will try the local URL first, then fall back to the remote URL automatically.",
+                    text = "Local URL is optional. If left blank the app automatically scans your network to find the server. Set it explicitly to skip the scan.",
                     color = Color(0xFF7090B8),
                     fontSize = 12.sp,
                     lineHeight = 17.sp,

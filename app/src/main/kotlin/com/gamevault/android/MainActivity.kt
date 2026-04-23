@@ -1,5 +1,7 @@
 package com.gamevault.android
 
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,8 +34,18 @@ import com.gamevault.android.util.dataStore
 import kotlinx.coroutines.flow.first
 
 class MainActivity : ComponentActivity() {
+
+    // Clears the cached server URL whenever the active network changes so the
+    // app re-probes local vs. remote on the next request (handles WiFi ↔ mobile switching).
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = ApiClient.invalidateUrlCache()
+        override fun onLost(network: Network)      = ApiClient.invalidateUrlCache()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val cm = getSystemService(ConnectivityManager::class.java)
+        cm.registerDefaultNetworkCallback(networkCallback)
         enableEdgeToEdge()
         setContent {
             GameVaultTheme {
@@ -118,5 +130,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
     }
 }

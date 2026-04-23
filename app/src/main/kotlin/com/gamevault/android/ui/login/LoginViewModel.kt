@@ -3,6 +3,7 @@ package com.gamevault.android.ui.login
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gamevault.android.BuildConfig
 import com.gamevault.android.data.api.ApiClient
 import com.gamevault.android.data.model.LoginRequest
 import com.gamevault.android.util.Prefs
@@ -37,13 +38,15 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             val prefs = context.dataStore.data.first()
             val savedUrl = prefs[Prefs.SERVER_URL] ?: ""
+            val savedUser = prefs[Prefs.USERNAME] ?: ""
+            val savedPass = prefs[Prefs.SAVED_PASSWORD] ?: ""
             _state.update {
                 it.copy(
                     serverUrl  = savedUrl,
                     urlSaved   = savedUrl.isNotBlank(),
-                    username   = prefs[Prefs.USERNAME]       ?: "",
-                    password   = prefs[Prefs.SAVED_PASSWORD] ?: "",
-                    rememberMe = prefs[Prefs.REMEMBER_ME]    ?: false,
+                    username   = savedUser,
+                    password   = savedPass,
+                    rememberMe = prefs[Prefs.REMEMBER_ME] ?: false,
                 )
             }
         }
