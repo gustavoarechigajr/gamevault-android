@@ -155,10 +155,7 @@ game-browser_old/static/console-icons/
 
 These are copied into `app/src/main/res/drawable/` with an `ic_platform_` prefix during setup. If you add a new platform, copy its icon here and add an entry to `PlatformMapper.getDrawableRes()`.
 
-A larger set of `.ico` assets (one subfolder per console) is at:
-```
-/home/gustavo/Pictures/GameVault-Design/assets/Console Icons 2/
-```
+A larger set of `.ico` assets (one subfolder per console) may be available locally.
 Use Python/Pillow to extract from `.ico` if the flat PNG set is missing a console.
 
 ---

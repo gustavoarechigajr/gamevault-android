@@ -23,7 +23,9 @@ Nintendo Switch, PS1, PS2, PSP, PS Vita, GameCube, Wii, Wii U, 3DS, DS, N64, NES
 ## Setup
 
 1. Install the APK (sideloading — enable Unknown Sources in Settings → Security)
-2. Open the app and enter your server URL (e.g. `http://10.0.0.10:5000`)
+2. Open the app and enter your server URL:
+   - **Local:** `http://<your-server-ip>:<port>` (e.g. `http://10.0.0.10:5000`)
+   - **Remote:** your DuckDNS or public URL (e.g. `https://yourserver.duckdns.org`)
 3. Log in with your GameVault credentials
 4. Go to **Settings** and pick your ROMs root folder (the `Emulation/roms` directory)
 5. Browse, search, and download — files sort themselves automatically
