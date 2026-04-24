@@ -1,5 +1,6 @@
 package com.gamevault.android.ui.platforms
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,11 +13,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Splitscreen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -26,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gamevault.android.data.DownloadRepository
 import com.gamevault.android.data.model.Platform
+import com.gamevault.android.ui.secondscreen.SecondScreenState
 import com.gamevault.android.ui.theme.GVBackground
 import com.gamevault.android.ui.theme.GVRed
 import com.gamevault.android.ui.theme.GVSurface
@@ -41,8 +45,12 @@ fun PlatformsScreen(
     vm: PlatformsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
-    val state by vm.state.collectAsState()
+    val state   by vm.state.collectAsState()
     val activeDownloadCount by DownloadRepository.downloads.collectAsState()
+    val dualScreenEnabled   by SecondScreenState.enabled.collectAsState()
+    val hasSecondDisplay    by SecondScreenState.hasSecondDisplay.collectAsState()
+
+    BackHandler { /* consume back press — prevents black-screen flash on AYN Thor */ }
 
     LaunchedEffect(Unit) { vm.load(context) }
 
@@ -60,6 +68,18 @@ fun PlatformsScreen(
                 },
                 actions = {
                     val activeCount = activeDownloadCount.values.count { !it.done }
+
+                    // Dual-screen toggle — only shown when a second display is physically present
+                    if (hasSecondDisplay) {
+                        IconButton(onClick = { SecondScreenState.toggle(context) }) {
+                            Icon(
+                                Icons.Default.Splitscreen,
+                                contentDescription = "Toggle dual screen",
+                                tint = if (dualScreenEnabled) GVRed else Color(0xFF7090B8),
+                            )
+                        }
+                    }
+
                     BadgedBox(
                         badge = {
                             if (activeCount > 0) {
@@ -88,11 +108,11 @@ fun PlatformsScreen(
             when {
                 state.loading -> CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFFE4000F),
+                    color = GVRed,
                 )
                 state.error.isNotBlank() -> Text(
                     state.error,
-                    color = Color(0xFFE4000F),
+                    color = GVRed,
                     modifier = Modifier.align(Alignment.Center).padding(16.dp),
                 )
                 else -> LazyVerticalGrid(
@@ -102,7 +122,15 @@ fun PlatformsScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(state.platforms) { platform ->
-                        PlatformCard(platform = platform, onClick = { onPlatformClick(platform.id) })
+                        PlatformCard(
+                            platform = platform,
+                            onClick  = {
+                                SecondScreenState.selectGame(null)
+                                SecondScreenState.selectPlatform(platform)
+                                onPlatformClick(platform.id)
+                            },
+                            onFocus  = { SecondScreenState.selectPlatform(platform) },
+                        )
                     }
                 }
             }
@@ -111,7 +139,11 @@ fun PlatformsScreen(
 }
 
 @Composable
-private fun PlatformCard(platform: Platform, onClick: () -> Unit) {
+private fun PlatformCard(
+    platform: Platform,
+    onClick: () -> Unit,
+    onFocus: () -> Unit,
+) {
     val accentColor = runCatching { Color(android.graphics.Color.parseColor(platform.color)) }
         .getOrDefault(Color(0xFF4ADE80))
     val drawableRes = PlatformMapper.getDrawableRes(platform.id)
@@ -122,6 +154,7 @@ private fun PlatformCard(platform: Platform, onClick: () -> Unit) {
             .height(90.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(GVSurface)
+            .onFocusChanged { if (it.hasFocus) onFocus() }
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,

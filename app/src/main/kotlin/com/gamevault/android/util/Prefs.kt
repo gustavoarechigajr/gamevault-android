@@ -19,7 +19,8 @@ object Prefs {
     val USERNAME       = stringPreferencesKey("username")
     val ROLE           = stringPreferencesKey("role")
     val SAVED_PASSWORD = stringPreferencesKey("saved_password")
-    val REMEMBER_ME    = booleanPreferencesKey("remember_me")
+    val REMEMBER_ME         = booleanPreferencesKey("remember_me")
+    val DUAL_SCREEN_ENABLED = booleanPreferencesKey("dual_screen_enabled")
 
     fun serverUrl(context: Context): Flow<String> =
         context.dataStore.data.map { it[SERVER_URL] ?: "" }

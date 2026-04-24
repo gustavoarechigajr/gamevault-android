@@ -1,14 +1,24 @@
 package com.gamevault.android.ui.games
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -17,17 +27,28 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import com.gamevault.android.ui.secondscreen.SecondScreenState
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,7 +61,7 @@ import com.gamevault.android.ui.theme.GVRed
 import com.gamevault.android.ui.theme.GVSurface
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GamesScreen(
     platformId: String,
@@ -50,26 +71,55 @@ fun GamesScreen(
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(platformId) { vm.load(context, platformId) }
 
+    // Clear selected game on the second screen when leaving this screen
+    DisposableEffect(Unit) {
+        onDispose { SecondScreenState.selectGame(null) }
+    }
+
+    // Show verify result as a snackbar
+    LaunchedEffect(state.verifyMessage) {
+        val msg = state.verifyMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(msg)
+        vm.clearVerifyMessage()
+    }
+
     val displayedGames = remember(state.games, searchQuery, state.sortOrder, state.localFiles) {
         val filtered = if (searchQuery.isBlank()) state.games
-                       else state.games.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                       else state.games.filter {
+                           val title = it.meta?.title ?: it.name
+                           title.contains(searchQuery, ignoreCase = true) ||
+                               it.name.contains(searchQuery, ignoreCase = true)
+                       }
         when (state.sortOrder) {
             SortOrder.Alphabetical -> filtered.sortedBy { (it.meta?.title ?: it.name).lowercase() }
             SortOrder.Size         -> filtered.sortedByDescending { it.size ?: 0L }
             SortOrder.Year         -> filtered.sortedByDescending { it.meta?.year ?: "" }
             SortOrder.Downloaded   -> filtered.sortedWith(
-                compareByDescending<GameItem> { if (it.name in state.localFiles) 1 else 0 }
+                compareByDescending<GameItem> { if (it.name.lowercase() in state.localFiles) 1 else 0 }
                     .thenBy { (it.meta?.title ?: it.name).lowercase() }
             )
             SortOrder.Rating       -> filtered.sortedByDescending { it.meta?.rating?.toFloatOrNull() ?: 0f }
         }
     }
 
+    // Pre-group search results by first letter for dividers (only when searching)
+    val groupedSearchResults = remember(displayedGames, searchQuery) {
+        if (searchQuery.isBlank()) emptyMap()
+        else displayedGames.groupBy { game ->
+            val first = (game.meta?.title ?: game.name).firstOrNull()?.uppercaseChar()
+            if (first?.isLetter() == true) first.toString() else "#"
+        }
+    }
+
     Scaffold(
         containerColor = GVBackground,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Column {
                 TopAppBar(
@@ -93,9 +143,28 @@ fun GamesScreen(
                     placeholder = { Text("Search ${state.platformName}…", color = Color(0xFF7090B8)) },
                     leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF7090B8)) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        focusManager.clearFocus()
+                    }),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .onFocusChanged { focusState ->
+                            if (!focusState.isFocused) keyboardController?.hide()
+                        }
+                        .onKeyEvent { keyEvent ->
+                            // D-pad up/down and back navigate away from search bar
+                            if (keyEvent.type == KeyEventType.KeyDown &&
+                                (keyEvent.key == Key.DirectionDown ||
+                                    keyEvent.key == Key.DirectionUp ||
+                                    keyEvent.key == Key.Escape ||
+                                    keyEvent.key == Key.Back)
+                            ) {
+                                focusManager.clearFocus()
+                                true
+                            } else false
+                        },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor    = GVRed,
@@ -150,16 +219,49 @@ fun GamesScreen(
                         contentPadding = PaddingValues(start = 12.dp, end = 36.dp, top = 12.dp, bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(displayedGames, key = { it.path }) { game ->
-                            GameRow(
-                                game           = game,
-                                downloadStatus = state.downloads[game.name],
-                                isOnDevice     = game.name in state.localFiles,
-                                isQueued       = game.name in state.queuedKeys,
-                                onDownload     = { vm.download(context, game, platformId) },
-                                onDelete       = { vm.deleteGame(context, game, platformId) },
-                                onCancel       = { vm.cancelDownload(game) },
-                            )
+                        if (searchQuery.isNotBlank() && groupedSearchResults.isNotEmpty()) {
+                            // Alphabetical dividers while searching
+                            groupedSearchResults.entries.sortedBy { it.key }.forEach { (letter, games) ->
+                                stickyHeader(key = "alpha:$letter") {
+                                    Text(
+                                        text = letter,
+                                        color = GVRed,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(GVBackground)
+                                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                                    )
+                                }
+                                items(games, key = { "s:${it.path}" }) { game ->
+                                    GameRow(
+                                        game           = game,
+                                        downloadStatus = state.downloads[game.name],
+                                        isOnDevice     = game.name.lowercase() in state.localFiles,
+                                        isQueued       = game.name in state.queuedKeys,
+                                        onDownload     = { vm.download(context, game, platformId) },
+                                        onDelete       = { vm.deleteGame(context, game, platformId) },
+                                        onCancel       = { vm.cancelDownload(game) },
+                                        onVerify       = { vm.verifyFile(context, game, platformId) },
+                                        onSelect       = { SecondScreenState.selectGame(game) },
+                                    )
+                                }
+                            }
+                        } else {
+                            items(displayedGames, key = { it.path }) { game ->
+                                GameRow(
+                                    game           = game,
+                                    downloadStatus = state.downloads[game.name],
+                                    isOnDevice     = game.name.lowercase() in state.localFiles,
+                                    isQueued       = game.name in state.queuedKeys,
+                                    onDownload     = { vm.download(context, game, platformId) },
+                                    onDelete       = { vm.deleteGame(context, game, platformId) },
+                                    onCancel       = { vm.cancelDownload(game) },
+                                    onVerify       = { vm.verifyFile(context, game, platformId) },
+                                    onSelect       = { SecondScreenState.selectGame(game) },
+                                )
+                            }
                         }
                     }
 
@@ -187,7 +289,6 @@ private fun FastScrollBar(
 
     val scope = rememberCoroutineScope()
 
-    // Map from first letter -> first index in games list
     val letterIndex = remember(games) {
         val map = LinkedHashMap<Char, Int>()
         games.forEachIndexed { idx, game ->
@@ -257,8 +358,18 @@ private fun GameRow(
     onDownload: () -> Unit,
     onDelete: () -> Unit,
     onCancel: () -> Unit,
+    onVerify: () -> Unit,
+    onSelect: () -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) GVRed.copy(alpha = 0.7f) else Color.Transparent,
+        animationSpec = tween(150),
+        label = "focusBorder",
+    )
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -292,6 +403,10 @@ private fun GameRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(GVSurface)
+            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+            .onFocusChanged { if (it.hasFocus) onSelect() }  // controller D-pad navigation
+            .focusable(interactionSource = interactionSource)
+            .clickable(onClick = onSelect)                    // touch tap anywhere on the row
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -368,12 +483,49 @@ private fun GameRow(
                     }
                 }
                 isOnDevice && downloadStatus?.error == null -> {
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = "On device — tap to delete",
-                            tint = Color(0xFF4CAF50),
-                        )
+                    var showMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "On device",
+                                tint = Color(0xFF4CAF50),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            containerColor = GVSurface,
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Verify file", color = Color.White) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.VerifiedUser,
+                                        contentDescription = null,
+                                        tint = Color(0xFF7090B8),
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onVerify()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete game", color = GVRed) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = GVRed,
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                },
+                            )
+                        }
                     }
                 }
                 downloadStatus?.done == true && downloadStatus.error != null -> {

@@ -42,9 +42,11 @@ data class GamesState(
     val loading: Boolean = false,
     val error: String = "",
     val downloads: Map<String, DownloadStatus> = emptyMap(),
+    // Stored as lowercase for case-insensitive matching against server filenames
     val localFiles: Set<String> = emptySet(),
     val sortOrder: SortOrder = SortOrder.Alphabetical,
     val queuedKeys: Set<String> = emptySet(),
+    val verifyMessage: String? = null,
 )
 
 class GamesViewModel : ViewModel() {
@@ -115,7 +117,7 @@ class GamesViewModel : ViewModel() {
                     for ((key, entry) in relevant) {
                         newDownloads = newDownloads + (key to DownloadStatus(key, entry.progress, entry.done, entry.error))
                         if (entry.done && entry.error == null) {
-                            newLocalFiles = newLocalFiles + key
+                            newLocalFiles = newLocalFiles + key.lowercase()
                         }
                     }
                     s.copy(downloads = newDownloads, localFiles = newLocalFiles, queuedKeys = queuedKeys)
@@ -124,6 +126,7 @@ class GamesViewModel : ViewModel() {
         }
     }
 
+    // Returns lowercase filenames for case-insensitive matching against server filenames
     private suspend fun scanLocalFiles(context: Context, platformId: String): Set<String> =
         withContext(Dispatchers.IO) {
             val prefs = context.dataStore.data.first()
@@ -136,7 +139,7 @@ class GamesViewModel : ViewModel() {
             val platformDir = root.findFile(folderName)
                 ?: return@withContext emptySet()
 
-            platformDir.listFiles().mapNotNull { it.name }.toSet()
+            platformDir.listFiles().mapNotNull { it.name?.lowercase() }.toSet()
         }
 
     fun download(context: Context, game: GameItem, platformId: String) {
@@ -185,15 +188,49 @@ class GamesViewModel : ViewModel() {
                 val root = DocumentFile.fromTreeUri(context, Uri.parse(romsRootUri))
                     ?: return@withContext
                 val platformDir = root.findFile(folderName) ?: return@withContext
-                platformDir.findFile(game.name)?.delete()
+                // Case-insensitive delete: find by lowercased name
+                platformDir.listFiles().firstOrNull { it.name?.lowercase() == game.name.lowercase() }?.delete()
             }
             DownloadRepository.remove(game.name)
             _state.update { s ->
                 s.copy(
-                    localFiles = s.localFiles - game.name,
+                    localFiles = s.localFiles - game.name.lowercase(),
                     downloads  = s.downloads  - game.name,
                 )
             }
         }
     }
+
+    fun verifyFile(context: Context, game: GameItem, platformId: String) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val prefs = context.dataStore.data.first()
+                val romsRootUri = prefs[Prefs.ROMS_ROOT_URI]
+                    ?: return@withContext "ROMs folder not configured in Settings"
+                if (romsRootUri.isBlank()) return@withContext "ROMs folder not configured in Settings"
+
+                val folderName = PlatformMapper.getFolderName(platformId)
+                val root = DocumentFile.fromTreeUri(context, Uri.parse(romsRootUri))
+                    ?: return@withContext "Cannot access ROMs folder"
+                val platformDir = root.findFile(folderName)
+                    ?: return@withContext "Platform folder not found"
+
+                val file = platformDir.listFiles()
+                    .firstOrNull { it.name?.lowercase() == game.name.lowercase() }
+                    ?: return@withContext "File not found on device"
+
+                val localSize    = file.length()
+                val expectedSize = game.size
+
+                if (expectedSize != null && expectedSize > 0 && localSize != expectedSize) {
+                    return@withContext "Size mismatch — got ${localSize}B, expected ${expectedSize}B (${game.sizeHuman}). File may be corrupted."
+                }
+
+                "File OK — ${game.sizeHuman ?: "${localSize} bytes"}"
+            }
+            _state.update { it.copy(verifyMessage = result) }
+        }
+    }
+
+    fun clearVerifyMessage() = _state.update { it.copy(verifyMessage = null) }
 }

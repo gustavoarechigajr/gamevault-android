@@ -40,8 +40,9 @@ fun DownloadsScreen(onBack: () -> Unit) {
     val allDownloads by DownloadRepository.downloads.collectAsState()
     val queue        by DownloadRepository.queue.collectAsState()
 
-    val active    = allDownloads.values.filter { !it.done }.sortedByDescending { it.timestamp }
-    val completed = allDownloads.values.filter { it.done }.sortedByDescending { it.timestamp }
+    val active            = allDownloads.values.filter { !it.done }.sortedByDescending { it.timestamp }
+    val recentlyDownloaded = allDownloads.values.filter { it.done && it.error == null }.sortedByDescending { it.timestamp }
+    val failed            = allDownloads.values.filter { it.done && it.error != null }.sortedByDescending { it.timestamp }
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -58,6 +59,8 @@ fun DownloadsScreen(onBack: () -> Unit) {
         }
     }
 
+    val hasCompleted = recentlyDownloaded.isNotEmpty() || failed.isNotEmpty()
+
     Scaffold(
         containerColor = GVBackground,
         topBar = {
@@ -69,7 +72,7 @@ fun DownloadsScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    if (completed.isNotEmpty()) {
+                    if (hasCompleted) {
                         TextButton(onClick = { DownloadRepository.clearCompleted() }) {
                             Text("Clear completed", color = Color(0xFF7090B8), fontSize = 13.sp)
                         }
@@ -125,13 +128,25 @@ fun DownloadsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                if (completed.isNotEmpty()) {
-                    item(key = "header:completed") {
+                if (recentlyDownloaded.isNotEmpty()) {
+                    item(key = "header:recent") {
                         if (active.isNotEmpty() || queue.isNotEmpty()) Spacer(Modifier.height(4.dp))
-                        SectionLabel("Completed")
+                        SectionLabel("Recently Downloaded")
                     }
-                    items(completed, key = { "c:${it.key}" }) { entry ->
-                        CompletedRow(entry, onDismiss = { DownloadRepository.remove(entry.key) })
+                    items(recentlyDownloaded, key = { "r:${it.key}" }) { entry ->
+                        RecentRow(entry, onDismiss = { DownloadRepository.remove(entry.key) })
+                    }
+                }
+
+                if (failed.isNotEmpty()) {
+                    item(key = "header:failed") {
+                        if (active.isNotEmpty() || queue.isNotEmpty() || recentlyDownloaded.isNotEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        SectionLabel("Failed")
+                    }
+                    items(failed, key = { "f:${it.key}" }) { entry ->
+                        FailedRow(entry, onDismiss = { DownloadRepository.remove(entry.key) })
                     }
                 }
             }
@@ -245,7 +260,6 @@ private fun QueueRow(
                 Text(text = item.platformName, color = Color(0xFF7090B8), fontSize = 12.sp)
             }
 
-            // Force-start: bypass queue and download immediately
             IconButton(onClick = onForceStart, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Default.PlayArrow,
@@ -268,7 +282,7 @@ private fun QueueRow(
 }
 
 @Composable
-private fun CompletedRow(entry: DownloadEntry, onDismiss: () -> Unit) {
+private fun RecentRow(entry: DownloadEntry, onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -277,25 +291,54 @@ private fun CompletedRow(entry: DownloadEntry, onDismiss: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-            if (entry.error != null) {
-                Icon(
-                    Icons.Default.ErrorOutline,
-                    contentDescription = "Failed",
-                    tint     = GVRed,
-                    modifier = Modifier.size(24.dp),
-                )
-            } else {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = "Done",
-                    tint     = Color(0xFF4CAF50),
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+        Icon(
+            Icons.Default.CheckCircle,
+            contentDescription = "Downloaded",
+            tint     = Color(0xFF4CAF50),
+            modifier = Modifier.size(24.dp),
+        )
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text       = entry.gameTitle,
+                color      = Color.White,
+                fontWeight = FontWeight.Medium,
+                fontSize   = 14.sp,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis,
+            )
+            Text(text = entry.platformName, color = Color(0xFF7090B8), fontSize = 12.sp)
         }
 
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Dismiss",
+                tint     = Color(0xFF4A5A7A),
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FailedRow(entry: DownloadEntry, onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(GVSurface, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            Icons.Default.ErrorOutline,
+            contentDescription = "Failed",
+            tint     = GVRed,
+            modifier = Modifier.size(24.dp),
+        )
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text       = entry.gameTitle,
                 color      = Color.White,

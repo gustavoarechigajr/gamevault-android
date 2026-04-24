@@ -9,6 +9,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Collections
 
@@ -178,7 +180,8 @@ object DownloadRepository {
             } finally {
                 jobs.remove(key)
                 forceKeys.remove(key)
-                processQueue()
+                // NonCancellable so processQueue() runs even when this coroutine is being cancelled
+                withContext(NonCancellable) { processQueue() }
             }
         }
         jobs[key] = job
