@@ -7,12 +7,15 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gamevault.android.BuildConfig
+import com.gamevault.android.data.DownloadRepository
 import com.gamevault.android.util.PlatformMapper
 import com.gamevault.android.util.Prefs
 import com.gamevault.android.util.UpdateHelper
 import com.gamevault.android.util.dataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -131,6 +134,33 @@ class SettingsViewModel : ViewModel() {
                 _state.update { it.copy(updateState = UpdateState.Idle) }
             } catch (e: Exception) {
                 _state.update { it.copy(updateState = UpdateState.Error(e.message ?: "Download failed")) }
+            }
+        }
+    }
+
+    fun rescanLocalFiles(context: Context) {
+        viewModelScope.launch {
+            _state.update { it.copy(folderStatus = "Scanning…") }
+            val count = withContext(Dispatchers.IO) {
+                val prefs = context.dataStore.data.first()
+                val romsRootUri = prefs[Prefs.ROMS_ROOT_URI] ?: return@withContext 0
+                if (romsRootUri.isBlank()) return@withContext 0
+
+                val root = DocumentFile.fromTreeUri(context, Uri.parse(romsRootUri))
+                    ?: return@withContext 0
+                val allFiles = mutableSetOf<String>()
+                root.listFiles().forEach { dir ->
+                    if (dir.isDirectory) {
+                        dir.listFiles().forEach { file ->
+                            file.name?.lowercase()?.let { allFiles.add(it) }
+                        }
+                    }
+                }
+                DownloadRepository.addGlobalLocalFiles(allFiles)
+                allFiles.size
+            }
+            _state.update {
+                it.copy(folderStatus = if (count > 0) "Found $count game files" else "No files found in ROMs folder")
             }
         }
     }

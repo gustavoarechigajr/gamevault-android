@@ -52,11 +52,17 @@ object DownloadRepository {
     // App-lifetime scope — outlives any ViewModel or Activity
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _queue     = MutableStateFlow<List<QueuedDownload>>(emptyList())
-    private val _downloads = MutableStateFlow<Map<String, DownloadEntry>>(emptyMap())
+    private val _queue            = MutableStateFlow<List<QueuedDownload>>(emptyList())
+    private val _downloads        = MutableStateFlow<Map<String, DownloadEntry>>(emptyMap())
+    private val _globalLocalFiles = MutableStateFlow<Set<String>>(emptySet())
 
-    val queue     = _queue.asStateFlow()
-    val downloads = _downloads.asStateFlow()
+    val queue            = _queue.asStateFlow()
+    val downloads        = _downloads.asStateFlow()
+    val globalLocalFiles = _globalLocalFiles.asStateFlow()
+
+    fun addGlobalLocalFiles(files: Set<String>) {
+        _globalLocalFiles.update { it + files }
+    }
 
     // Active download jobs, keyed by fileName
     private val jobs      = ConcurrentHashMap<String, Job>()

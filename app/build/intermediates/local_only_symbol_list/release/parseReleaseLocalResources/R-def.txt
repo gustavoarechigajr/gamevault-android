@@ -1,0 +1,32 @@
+R_DEF: Internal format may change without notice
+local
+drawable ic_notif_download
+drawable ic_platform_3ds
+drawable ic_platform_atari2600
+drawable ic_platform_atari7800
+drawable ic_platform_ds
+drawable ic_platform_gamecube
+drawable ic_platform_gamegear
+drawable ic_platform_gb
+drawable ic_platform_gba
+drawable ic_platform_gbc
+drawable ic_platform_genesis
+drawable ic_platform_jag
+drawable ic_platform_lynx
+drawable ic_platform_n64
+drawable ic_platform_nes
+drawable ic_platform_ps2
+drawable ic_platform_psp
+drawable ic_platform_psx
+drawable ic_platform_sega32x
+drawable ic_platform_sms
+drawable ic_platform_snes
+drawable ic_platform_switch
+drawable ic_platform_tg16
+drawable ic_platform_wii
+drawable ic_platform_wiiu
+mipmap ic_launcher
+mipmap ic_launcher_round
+string app_name
+style Theme.GameVault
+xml file_paths

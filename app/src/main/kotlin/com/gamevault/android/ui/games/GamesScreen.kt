@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,6 +34,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import com.gamevault.android.ui.secondscreen.SecondScreenState
 import androidx.compose.ui.graphics.Color
@@ -40,6 +43,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -71,22 +75,29 @@ fun GamesScreen(
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    var searchActive by remember { mutableStateOf(false) }
+    val searchFocusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(platformId) { vm.load(context, platformId) }
 
-    // Clear selected game on the second screen when leaving this screen
     DisposableEffect(Unit) {
         onDispose { SecondScreenState.selectGame(null) }
     }
 
-    // Show verify result as a snackbar
     LaunchedEffect(state.verifyMessage) {
         val msg = state.verifyMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(msg)
         vm.clearVerifyMessage()
+    }
+
+    // Request focus on the text field when search mode activates
+    LaunchedEffect(searchActive) {
+        if (searchActive) {
+            try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
+        }
     }
 
     val displayedGames = remember(state.games, searchQuery, state.sortOrder, state.localFiles) {
@@ -108,7 +119,6 @@ fun GamesScreen(
         }
     }
 
-    // Pre-group search results by first letter for dividers (only when searching)
     val groupedSearchResults = remember(displayedGames, searchQuery) {
         if (searchQuery.isBlank()) emptyMap()
         else displayedGames.groupBy { game ->
@@ -116,6 +126,9 @@ fun GamesScreen(
             if (first?.isLetter() == true) first.toString() else "#"
         }
     }
+
+    val sortLeft  = { val prev = SortOrder.entries.getOrNull(state.sortOrder.ordinal - 1); if (prev != null) vm.setSortOrder(prev) }
+    val sortRight = { val next = SortOrder.entries.getOrNull(state.sortOrder.ordinal + 1); if (next != null) vm.setSortOrder(next) }
 
     Scaffold(
         containerColor = GVBackground,
@@ -137,44 +150,100 @@ fun GamesScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = GVBackground),
                 )
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search ${state.platformName}…", color = Color(0xFF7090B8)) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF7090B8)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        focusManager.clearFocus()
-                    }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                        .onFocusChanged { focusState ->
-                            if (!focusState.isFocused) keyboardController?.hide()
-                        }
-                        .onKeyEvent { keyEvent ->
-                            // D-pad up/down and back navigate away from search bar
-                            if (keyEvent.type == KeyEventType.KeyDown &&
-                                (keyEvent.key == Key.DirectionDown ||
-                                    keyEvent.key == Key.DirectionUp ||
-                                    keyEvent.key == Key.Escape ||
-                                    keyEvent.key == Key.Back)
-                            ) {
-                                focusManager.clearFocus()
-                                true
-                            } else false
+
+                // Search bar — fake (D-pad safe) when idle, real TextField when active
+                if (searchActive) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search ${state.platformName}…", color = Color(0xFF7090B8)) },
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF7090B8)) },
+                        trailingIcon = {
+                            if (searchQuery.isNotBlank()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Default.Close, null, tint = Color(0xFF7090B8))
+                                }
+                            }
                         },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor    = GVRed,
-                        unfocusedBorderColor  = Color(0xFF1C2A44),
-                        focusedTextColor      = Color.White,
-                        unfocusedTextColor    = Color(0xFFDCE8FF),
-                        unfocusedContainerColor = GVSurface,
-                        focusedContainerColor   = GVSurface,
-                    ),
-                )
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            searchActive = false
+                            focusManager.clearFocus()
+                        }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .focusRequester(searchFocusRequester)
+                            .onFocusChanged { if (!it.isFocused) keyboardController?.hide() }
+                            .onKeyEvent { ev ->
+                                if (ev.type == KeyEventType.KeyDown && (
+                                    ev.key == Key.Escape ||
+                                    ev.key == Key.Back ||
+                                    ev.key == Key.DirectionDown ||
+                                    ev.key == Key.DirectionUp
+                                )) {
+                                    searchActive = false
+                                    focusManager.clearFocus()
+                                    true
+                                } else false
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor      = GVRed,
+                            unfocusedBorderColor    = Color(0xFF1C2A44),
+                            focusedTextColor        = Color.White,
+                            unfocusedTextColor      = Color(0xFFDCE8FF),
+                            unfocusedContainerColor = GVSurface,
+                            focusedContainerColor   = GVSurface,
+                        ),
+                    )
+                } else {
+                    // Focusable placeholder — D-pad can land here; A/Enter activates real search
+                    val fakeInteraction = remember { MutableInteractionSource() }
+                    val fakeFocused by fakeInteraction.collectIsFocusedAsState()
+                    val fakeBorder by animateColorAsState(
+                        targetValue = if (fakeFocused) GVRed.copy(alpha = 0.7f) else Color(0xFF1C2A44),
+                        animationSpec = tween(150), label = "searchBorder",
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GVSurface)
+                            .border(1.5.dp, fakeBorder, RoundedCornerShape(12.dp))
+                            .focusable(interactionSource = fakeInteraction)
+                            .clickable { searchActive = true }
+                            .onKeyEvent { ev ->
+                                if (ev.type == KeyEventType.KeyDown &&
+                                    (ev.key == Key.Enter || ev.key == Key.ButtonA)) {
+                                    searchActive = true
+                                    true
+                                } else false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(Icons.Default.Search, null, tint = Color(0xFF7090B8), modifier = Modifier.size(20.dp))
+                        Text(
+                            text = if (searchQuery.isBlank()) "Search ${state.platformName}…" else searchQuery,
+                            color = if (searchQuery.isBlank()) Color(0xFF7090B8) else Color(0xFFDCE8FF),
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (searchQuery.isNotBlank()) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = Color(0xFF7090B8),
+                                modifier = Modifier.size(16.dp).clickable { searchQuery = "" },
+                            )
+                        }
+                    }
+                }
+
                 // Sort chips
                 ScrollableTabRow(
                     selectedTabIndex = state.sortOrder.ordinal,
@@ -199,9 +268,23 @@ fun GamesScreen(
                     }
                 }
             }
-        }
+        },
+        bottomBar = {
+            ControllerHintBar()
+        },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // X button anywhere in the content area activates search
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .onPreviewKeyEvent { ev ->
+                    if (ev.type == KeyEventType.KeyDown && ev.key == Key.ButtonX && !searchActive) {
+                        searchActive = true
+                        true
+                    } else false
+                },
+        ) {
             when {
                 state.loading -> CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
@@ -220,7 +303,6 @@ fun GamesScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (searchQuery.isNotBlank() && groupedSearchResults.isNotEmpty()) {
-                            // Alphabetical dividers while searching
                             groupedSearchResults.entries.sortedBy { it.key }.forEach { (letter, games) ->
                                 stickyHeader(key = "alpha:$letter") {
                                     Text(
@@ -245,6 +327,8 @@ fun GamesScreen(
                                         onCancel       = { vm.cancelDownload(game) },
                                         onVerify       = { vm.verifyFile(context, game, platformId) },
                                         onSelect       = { SecondScreenState.selectGame(game) },
+                                        onSortLeft     = sortLeft,
+                                        onSortRight    = sortRight,
                                     )
                                 }
                             }
@@ -260,12 +344,13 @@ fun GamesScreen(
                                     onCancel       = { vm.cancelDownload(game) },
                                     onVerify       = { vm.verifyFile(context, game, platformId) },
                                     onSelect       = { SecondScreenState.selectGame(game) },
+                                    onSortLeft     = sortLeft,
+                                    onSortRight    = sortRight,
                                 )
                             }
                         }
                     }
 
-                    // Alphabetical fast-scroll bar (only when not searching)
                     if (state.sortOrder == SortOrder.Alphabetical && searchQuery.isBlank()) {
                         FastScrollBar(
                             games     = displayedGames,
@@ -276,6 +361,46 @@ fun GamesScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ControllerHintBar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(GVBackground)
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ControllerHint("A", "Select")
+        ControllerHint("B", "Back")
+        ControllerHint("X", "Search")
+        ControllerHint("Y", "Download")
+        Spacer(Modifier.weight(1f))
+        ControllerHint("◀▶", "Sort")
+    }
+}
+
+@Composable
+private fun ControllerHint(button: String, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .defaultMinSize(minWidth = 20.dp)
+                .height(20.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF1C2A44))
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(button, color = GVRed, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        }
+        Text(label, color = Color(0xFF7090B8), fontSize = 11.sp)
     }
 }
 
@@ -360,6 +485,8 @@ private fun GameRow(
     onCancel: () -> Unit,
     onVerify: () -> Unit,
     onSelect: () -> Unit,
+    onSortLeft: () -> Unit,
+    onSortRight: () -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -398,15 +525,27 @@ private fun GameRow(
         )
     }
 
+    val activeDownload = downloadStatus != null && !downloadStatus.done
+    val canDownload    = !isOnDevice && !activeDownload && !isQueued
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(GVSurface)
             .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
-            .onFocusChanged { if (it.hasFocus) onSelect() }  // controller D-pad navigation
+            .onFocusChanged { if (it.hasFocus) onSelect() }
             .focusable(interactionSource = interactionSource)
-            .clickable(onClick = onSelect)                    // touch tap anywhere on the row
+            .clickable(onClick = onSelect)
+            .onKeyEvent { ev ->
+                if (ev.type != KeyEventType.KeyDown) return@onKeyEvent false
+                when (ev.key) {
+                    Key.ButtonY       -> { if (canDownload) onDownload(); true }
+                    Key.DirectionLeft  -> { onSortLeft(); true }
+                    Key.DirectionRight -> { onSortRight(); true }
+                    else               -> false
+                }
+            }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -432,8 +571,6 @@ private fun GameRow(
                     .background(Color(0xFF182240)),
             )
         }
-
-        val activeDownload = downloadStatus != null && !downloadStatus.done
 
         Column(modifier = Modifier.weight(1f)) {
             Text(

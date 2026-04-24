@@ -1,0 +1,146 @@
+[
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_gba.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_gba.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-xhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_psx.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_psx.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_gamegear.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_gamegear.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_tg16.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_tg16.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_wii.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_wii.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_ds.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_ds.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-xxxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_wiiu.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_wiiu.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_switch.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_switch.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_nes.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_nes.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_3ds.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_3ds.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_psp.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_psp.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_genesis.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_genesis.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_lynx.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_lynx.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_gamecube.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_gamecube.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_atari2600.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_atari2600.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_n64.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_n64.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_snes.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_snes.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_sega32x.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_sega32x.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_gb.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_gb.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_sms.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_sms.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_gbc.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_gbc.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_jag.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_jag.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_notif_download.xml.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_notif_download.xml"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_ps2.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_ps2.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "com.gamevault.android.app-main-55:/mipmap-xxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/xml_file_paths.xml.flat",
+        "source": "com.gamevault.android.app-main-55:/xml/file_paths.xml"
+    },
+    {
+        "merged": "com.gamevault.android.app-release-54:/drawable_ic_platform_atari7800.png.flat",
+        "source": "com.gamevault.android.app-main-55:/drawable/ic_platform_atari7800.png"
+    }
+]

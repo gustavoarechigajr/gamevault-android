@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -115,14 +116,26 @@ fun SettingsScreen(
                     fontSize = 13.sp,
                     maxLines = 3,
                 )
-                OutlinedButton(
-                    onClick = { folderPicker.launch(null) },
-                    shape = RoundedCornerShape(10.dp),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(GVRed)),
-                ) {
-                    Icon(Icons.Default.Folder, null, tint = GVRed, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Pick ROMs Root Folder", color = GVRed)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(
+                        onClick = { folderPicker.launch(null) },
+                        shape = RoundedCornerShape(10.dp),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(GVRed)),
+                    ) {
+                        Icon(Icons.Default.Folder, null, tint = GVRed, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Pick Folder", color = GVRed)
+                    }
+                    OutlinedButton(
+                        onClick = { vm.rescanLocalFiles(context) },
+                        shape = RoundedCornerShape(10.dp),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(Color(0xFF1C2A44))),
+                        enabled = state.romsRootUri.isNotBlank(),
+                    ) {
+                        Icon(Icons.Default.Refresh, null, tint = Color(0xFF7090B8), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Rescan", color = Color(0xFF7090B8))
+                    }
                 }
                 if (state.folderStatus.isNotBlank()) {
                     Text(

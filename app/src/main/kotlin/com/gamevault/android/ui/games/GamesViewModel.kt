@@ -105,15 +105,21 @@ class GamesViewModel : ViewModel() {
 
     private fun observeRepoDownloads(gameNames: Set<String>) {
         viewModelScope.launch {
-            combine(DownloadRepository.downloads, DownloadRepository.queue) { allDownloads, queue ->
-                Pair(allDownloads, queue)
-            }.collect { (allDownloads, queue) ->
+            combine(
+                DownloadRepository.downloads,
+                DownloadRepository.queue,
+                DownloadRepository.globalLocalFiles,
+            ) { allDownloads, queue, globalFiles -> Triple(allDownloads, queue, globalFiles) }
+            .collect { (allDownloads, queue, globalFiles) ->
                 val relevant   = allDownloads.filterKeys { it in gameNames }
                 val queuedKeys = queue.map { it.key }.filter { it in gameNames }.toSet()
 
                 _state.update { s ->
                     var newDownloads  = emptyMap<String, DownloadStatus>()
-                    var newLocalFiles = s.localFiles
+                    // Seed from the global scan (files found via Settings → Rescan)
+                    var newLocalFiles = s.localFiles + globalFiles.filter { f ->
+                        gameNames.any { name -> name.lowercase() == f }
+                    }
                     for ((key, entry) in relevant) {
                         newDownloads = newDownloads + (key to DownloadStatus(key, entry.progress, entry.done, entry.error))
                         if (entry.done && entry.error == null) {
