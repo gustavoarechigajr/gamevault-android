@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.gamevault.android.data.api.ApiClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -55,22 +56,27 @@ object DownloadHelper {
         val body = response.body ?: throw Exception("Empty response from server")
         val totalBytes = body.contentLength()
 
-        context.contentResolver.openOutputStream(destFile.uri)?.use { out ->
-            body.byteStream().use { input ->
-                val buffer = ByteArray(32 * 1024)
-                var downloaded = 0L
-                var read: Int
-                while (input.read(buffer).also { read = it } != -1) {
-                    out.write(buffer, 0, read)
-                    downloaded += read
-                    onProgress(
-                        if (totalBytes > 0) (downloaded * 100 / totalBytes).toInt() else -1
-                    )
+        try {
+            context.contentResolver.openOutputStream(destFile.uri)?.use { out ->
+                body.byteStream().use { input ->
+                    val buffer = ByteArray(32 * 1024)
+                    var downloaded = 0L
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        out.write(buffer, 0, read)
+                        downloaded += read
+                        onProgress(
+                            if (totalBytes > 0) (downloaded * 100 / totalBytes).toInt() else -1
+                        )
+                    }
                 }
+            } ?: run {
+                destFile.delete()
+                throw Exception("Cannot open output stream")
             }
-        } ?: run {
+        } catch (e: CancellationException) {
             destFile.delete()
-            throw Exception("Cannot open output stream")
+            throw e
         }
     }
 }

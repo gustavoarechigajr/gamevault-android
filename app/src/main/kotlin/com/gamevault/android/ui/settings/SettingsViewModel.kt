@@ -42,12 +42,29 @@ class SettingsViewModel : ViewModel() {
 
     fun load(context: Context) {
         viewModelScope.launch {
-            val prefs = context.dataStore.data.first()
+            val prefs    = context.dataStore.data.first()
+            val savedUri = prefs[Prefs.ROMS_ROOT_URI] ?: ""
+
+            var validUri     = savedUri
+            var folderStatus = ""
+            if (savedUri.isNotBlank()) {
+                val parsedUri      = Uri.parse(savedUri)
+                val hasPermission  = context.contentResolver.persistedUriPermissions.any {
+                    it.uri == parsedUri && it.isReadPermission && it.isWritePermission
+                }
+                if (!hasPermission) {
+                    validUri     = ""
+                    folderStatus = "Folder access lost — please re-select"
+                    Prefs.setRomsRootUri(context, "")
+                }
+            }
+
             _state.update {
                 it.copy(
-                    serverUrl   = prefs[Prefs.SERVER_URL]    ?: "",
-                    localUrl    = prefs[Prefs.LOCAL_URL]     ?: "",
-                    romsRootUri = prefs[Prefs.ROMS_ROOT_URI] ?: "",
+                    serverUrl    = prefs[Prefs.SERVER_URL] ?: "",
+                    localUrl     = prefs[Prefs.LOCAL_URL]  ?: "",
+                    romsRootUri  = validUri,
+                    folderStatus = folderStatus,
                 )
             }
         }

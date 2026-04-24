@@ -15,14 +15,23 @@ import com.gamevault.android.util.dataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class SortOrder(val label: String) {
+    Alphabetical("A–Z"),
+    Size("Size"),
+    Year("Year"),
+    Downloaded("Downloaded"),
+    Rating("Rating"),
+}
+
 data class DownloadStatus(
     val fileName: String,
-    val progress: Int,   // 0-100, or -1 for indeterminate
+    val progress: Int,
     val done: Boolean = false,
     val error: String? = null,
 )
@@ -34,6 +43,8 @@ data class GamesState(
     val error: String = "",
     val downloads: Map<String, DownloadStatus> = emptyMap(),
     val localFiles: Set<String> = emptySet(),
+    val sortOrder: SortOrder = SortOrder.Alphabetical,
+    val queuedKeys: Set<String> = emptySet(),
 )
 
 class GamesViewModel : ViewModel() {
@@ -71,6 +82,8 @@ class GamesViewModel : ViewModel() {
                                 title       = it.title,
                                 description = it.description,
                                 coverUrl    = it.boxArtPath?.let { p -> "$baseUrl/static/$p" },
+                                year        = it.year,
+                                rating      = it.rating,
                             )
                         }
                     )
@@ -81,7 +94,6 @@ class GamesViewModel : ViewModel() {
                     it.copy(loading = false, platformName = body.platform.name, games = enriched, localFiles = localFiles)
                 }
 
-                // Mirror any in-progress or completed repo entries for this platform
                 observeRepoDownloads(enriched.map { it.name }.toSet())
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = e.message ?: "Unknown error") }
@@ -89,15 +101,16 @@ class GamesViewModel : ViewModel() {
         }
     }
 
-    // Collect DownloadRepository updates and mirror them into local state so the
-    // progress UI stays live while on-screen and re-syncs when re-entering the screen.
     private fun observeRepoDownloads(gameNames: Set<String>) {
         viewModelScope.launch {
-            DownloadRepository.downloads.collect { allDownloads ->
-                val relevant = allDownloads.filterKeys { it in gameNames }
-                if (relevant.isEmpty()) return@collect
+            combine(DownloadRepository.downloads, DownloadRepository.queue) { allDownloads, queue ->
+                Pair(allDownloads, queue)
+            }.collect { (allDownloads, queue) ->
+                val relevant   = allDownloads.filterKeys { it in gameNames }
+                val queuedKeys = queue.map { it.key }.filter { it in gameNames }.toSet()
+
                 _state.update { s ->
-                    var newDownloads  = s.downloads
+                    var newDownloads  = emptyMap<String, DownloadStatus>()
                     var newLocalFiles = s.localFiles
                     for ((key, entry) in relevant) {
                         newDownloads = newDownloads + (key to DownloadStatus(key, entry.progress, entry.done, entry.error))
@@ -105,7 +118,7 @@ class GamesViewModel : ViewModel() {
                             newLocalFiles = newLocalFiles + key
                         }
                     }
-                    s.copy(downloads = newDownloads, localFiles = newLocalFiles)
+                    s.copy(downloads = newDownloads, localFiles = newLocalFiles, queuedKeys = queuedKeys)
                 }
             }
         }
@@ -128,6 +141,7 @@ class GamesViewModel : ViewModel() {
 
     fun download(context: Context, game: GameItem, platformId: String) {
         if (DownloadRepository.downloads.value[game.name]?.done == false) return
+        if (DownloadRepository.queue.value.any { it.key == game.name }) return
 
         viewModelScope.launch {
             val prefs       = context.dataStore.data.first()
@@ -143,7 +157,7 @@ class GamesViewModel : ViewModel() {
             }
 
             val (_, baseUrl) = ApiClient.getApiSmart(remote, local)
-            DownloadRepository.startDownload(
+            DownloadRepository.enqueue(
                 context       = context,
                 game          = game,
                 platformId    = platformId,
@@ -153,6 +167,12 @@ class GamesViewModel : ViewModel() {
             )
         }
     }
+
+    fun cancelDownload(game: GameItem) {
+        DownloadRepository.cancelDownload(game.name)
+    }
+
+    fun setSortOrder(order: SortOrder) = _state.update { it.copy(sortOrder = order) }
 
     fun deleteGame(context: Context, game: GameItem, platformId: String) {
         viewModelScope.launch {

@@ -25,8 +25,9 @@ data class GameItem(
 data class GameMeta(
     val title: String?,
     val description: String?,
-    // Resolved full URL, built from boxArtPath at load time
     val coverUrl: String?,
+    val year: String?,
+    val rating: String?,
 )
 
 // Mirrors the DB row returned by /api/platform/<id>/metadata
