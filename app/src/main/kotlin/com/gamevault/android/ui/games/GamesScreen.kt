@@ -80,6 +80,8 @@ fun GamesScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(platformId) { vm.load(context, platformId) }
 
@@ -93,11 +95,8 @@ fun GamesScreen(
         vm.clearVerifyMessage()
     }
 
-    // Request focus on the text field when search mode activates
     LaunchedEffect(searchActive) {
-        if (searchActive) {
-            try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
-        }
+        if (searchActive) try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
     }
 
     val displayedGames = remember(state.games, searchQuery, state.sortOrder, state.localFiles) {
@@ -127,8 +126,30 @@ fun GamesScreen(
         }
     }
 
-    val sortLeft  = { val prev = SortOrder.entries.getOrNull(state.sortOrder.ordinal - 1); if (prev != null) vm.setSortOrder(prev) }
-    val sortRight = { val next = SortOrder.entries.getOrNull(state.sortOrder.ordinal + 1); if (next != null) vm.setSortOrder(next) }
+    // Index of list positions where a new leading character starts — used for L/R letter jumping
+    val letterBoundaries = remember(displayedGames) {
+        val list = mutableListOf<Int>()
+        var lastChar: Char? = null
+        displayedGames.forEachIndexed { idx, game ->
+            val c = (game.meta?.title ?: game.name).firstOrNull()?.uppercaseChar()
+            val norm = if (c?.isLetter() == true) c else '#'
+            if (norm != lastChar) { list.add(idx); lastChar = norm }
+        }
+        list
+    }
+
+    fun jumpRight() {
+        val first = listState.firstVisibleItemIndex
+        letterBoundaries.firstOrNull { it > first }?.let {
+            scope.launch { listState.animateScrollToItem(it) }
+        }
+    }
+
+    fun jumpLeft() {
+        val first = listState.firstVisibleItemIndex
+        val idx = letterBoundaries.indexOfLast { it < first }
+        scope.launch { listState.animateScrollToItem(if (idx >= 0) letterBoundaries[idx] else 0) }
+    }
 
     Scaffold(
         containerColor = GVBackground,
@@ -151,7 +172,7 @@ fun GamesScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = GVBackground),
                 )
 
-                // Search bar — fake (D-pad safe) when idle, real TextField when active
+                // Search: fake focusable row when idle (D-pad safe), real TextField when active
                 if (searchActive) {
                     OutlinedTextField(
                         value = searchQuery,
@@ -199,7 +220,6 @@ fun GamesScreen(
                         ),
                     )
                 } else {
-                    // Focusable placeholder — D-pad can land here; A/Enter activates real search
                     val fakeInteraction = remember { MutableInteractionSource() }
                     val fakeFocused by fakeInteraction.collectIsFocusedAsState()
                     val fakeBorder by animateColorAsState(
@@ -218,8 +238,7 @@ fun GamesScreen(
                             .onKeyEvent { ev ->
                                 if (ev.type == KeyEventType.KeyDown &&
                                     (ev.key == Key.Enter || ev.key == Key.ButtonA)) {
-                                    searchActive = true
-                                    true
+                                    searchActive = true; true
                                 } else false
                             }
                             .padding(horizontal = 16.dp, vertical = 13.dp),
@@ -235,8 +254,7 @@ fun GamesScreen(
                         )
                         if (searchQuery.isNotBlank()) {
                             Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Clear",
+                                Icons.Default.Close, "Clear",
                                 tint = Color(0xFF7090B8),
                                 modifier = Modifier.size(16.dp).clickable { searchQuery = "" },
                             )
@@ -244,7 +262,6 @@ fun GamesScreen(
                     }
                 }
 
-                // Sort chips
                 ScrollableTabRow(
                     selectedTabIndex = state.sortOrder.ordinal,
                     containerColor = GVBackground,
@@ -253,7 +270,7 @@ fun GamesScreen(
                     divider = {},
                     modifier = Modifier.padding(bottom = 4.dp),
                 ) {
-                    SortOrder.entries.forEachIndexed { _, order ->
+                    SortOrder.entries.forEach { order ->
                         Tab(
                             selected = state.sortOrder == order,
                             onClick  = { vm.setSortOrder(order) },
@@ -269,20 +286,33 @@ fun GamesScreen(
                 }
             }
         },
-        bottomBar = {
-            ControllerHintBar()
-        },
     ) { padding ->
-        // X button anywhere in the content area activates search
+        // onPreviewKeyEvent fires BEFORE the focus system processes the event, so
+        // we can intercept directional keys without the focus traversal stealing them.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .onPreviewKeyEvent { ev ->
-                    if (ev.type == KeyEventType.KeyDown && ev.key == Key.ButtonX && !searchActive) {
-                        searchActive = true
-                        true
-                    } else false
+                    if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (ev.key) {
+                        Key.ButtonX -> {
+                            if (!searchActive) { searchActive = true; true } else false
+                        }
+                        Key.ButtonY -> {
+                            val game = SecondScreenState.selectedGame.value ?: return@onPreviewKeyEvent false
+                            val isOnDevice    = game.name.lowercase() in state.localFiles
+                            val activeDownload = state.downloads[game.name]?.done == false
+                            val isQueued      = game.name in state.queuedKeys
+                            if (!isOnDevice && !activeDownload && !isQueued) {
+                                vm.download(context, game, platformId)
+                            }
+                            true
+                        }
+                        Key.DirectionLeft  -> { jumpLeft();  true }
+                        Key.DirectionRight -> { jumpRight(); true }
+                        else -> false
+                    }
                 },
         ) {
             when {
@@ -296,10 +326,10 @@ fun GamesScreen(
                     modifier = Modifier.align(Alignment.Center).padding(16.dp),
                 )
                 else -> {
-                    val listState = rememberLazyListState()
                     LazyColumn(
                         state = listState,
-                        contentPadding = PaddingValues(start = 12.dp, end = 36.dp, top = 12.dp, bottom = 12.dp),
+                        // Extra bottom padding so last item isn't hidden behind the hint bar
+                        contentPadding = PaddingValues(start = 12.dp, end = 36.dp, top = 12.dp, bottom = 56.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (searchQuery.isNotBlank() && groupedSearchResults.isNotEmpty()) {
@@ -327,8 +357,6 @@ fun GamesScreen(
                                         onCancel       = { vm.cancelDownload(game) },
                                         onVerify       = { vm.verifyFile(context, game, platformId) },
                                         onSelect       = { SecondScreenState.selectGame(game) },
-                                        onSortLeft     = sortLeft,
-                                        onSortRight    = sortRight,
                                     )
                                 }
                             }
@@ -344,8 +372,6 @@ fun GamesScreen(
                                     onCancel       = { vm.cancelDownload(game) },
                                     onVerify       = { vm.verifyFile(context, game, platformId) },
                                     onSelect       = { SecondScreenState.selectGame(game) },
-                                    onSortLeft     = sortLeft,
-                                    onSortRight    = sortRight,
                                 )
                             }
                         }
@@ -360,16 +386,19 @@ fun GamesScreen(
                     }
                 }
             }
+
+            // Hint bar overlaid at the bottom — list has extra padding so it isn't hidden
+            ControllerHintBar(modifier = Modifier.align(Alignment.BottomStart))
         }
     }
 }
 
 @Composable
-private fun ControllerHintBar() {
+private fun ControllerHintBar(modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .background(GVBackground)
+            .background(Color(0xEE0A1020))
             .padding(horizontal = 16.dp, vertical = 7.dp),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -379,7 +408,7 @@ private fun ControllerHintBar() {
         ControllerHint("X", "Search")
         ControllerHint("Y", "Download")
         Spacer(Modifier.weight(1f))
-        ControllerHint("◀▶", "Sort")
+        ControllerHint("◀▶", "Jump letter")
     }
 }
 
@@ -485,8 +514,6 @@ private fun GameRow(
     onCancel: () -> Unit,
     onVerify: () -> Unit,
     onSelect: () -> Unit,
-    onSortLeft: () -> Unit,
-    onSortRight: () -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -512,9 +539,7 @@ private fun GameRow(
                 TextButton(onClick = {
                     showDeleteDialog = false
                     onDelete()
-                }) {
-                    Text("Delete", color = GVRed)
-                }
+                }) { Text("Delete", color = GVRed) }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
@@ -526,7 +551,6 @@ private fun GameRow(
     }
 
     val activeDownload = downloadStatus != null && !downloadStatus.done
-    val canDownload    = !isOnDevice && !activeDownload && !isQueued
 
     Row(
         modifier = Modifier
@@ -537,15 +561,6 @@ private fun GameRow(
             .onFocusChanged { if (it.hasFocus) onSelect() }
             .focusable(interactionSource = interactionSource)
             .clickable(onClick = onSelect)
-            .onKeyEvent { ev ->
-                if (ev.type != KeyEventType.KeyDown) return@onKeyEvent false
-                when (ev.key) {
-                    Key.ButtonY       -> { if (canDownload) onDownload(); true }
-                    Key.DirectionLeft  -> { onSortLeft(); true }
-                    Key.DirectionRight -> { onSortRight(); true }
-                    else               -> false
-                }
-            }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -585,9 +600,7 @@ private fun GameRow(
                 Text(text = game.sizeHuman, color = Color(0xFF7090B8), fontSize = 12.sp)
             }
             when {
-                isQueued -> {
-                    Text("Queued", color = Color(0xFF7090B8), fontSize = 11.sp)
-                }
+                isQueued -> Text("Queued", color = Color(0xFF7090B8), fontSize = 11.sp)
                 activeDownload -> {
                     Spacer(Modifier.height(4.dp))
                     if (downloadStatus!!.progress >= 0) {
@@ -606,9 +619,8 @@ private fun GameRow(
                         )
                     }
                 }
-                downloadStatus?.done == true && downloadStatus.error != null -> {
+                downloadStatus?.done == true && downloadStatus.error != null ->
                     Text(text = downloadStatus.error, color = GVRed, fontSize = 11.sp)
-                }
             }
         }
 
@@ -616,18 +628,14 @@ private fun GameRow(
             when {
                 activeDownload || isQueued -> {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color(0xFF7090B8))
+                        Icon(Icons.Default.Close, "Cancel", tint = Color(0xFF7090B8))
                     }
                 }
                 isOnDevice && downloadStatus?.error == null -> {
                     var showMenu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                contentDescription = "On device",
-                                tint = Color(0xFF4CAF50),
-                            )
+                            Icon(Icons.Default.CheckCircle, "On device", tint = Color(0xFF4CAF50))
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -637,42 +645,26 @@ private fun GameRow(
                             DropdownMenuItem(
                                 text = { Text("Verify file", color = Color.White) },
                                 leadingIcon = {
-                                    Icon(
-                                        Icons.Outlined.VerifiedUser,
-                                        contentDescription = null,
-                                        tint = Color(0xFF7090B8),
-                                    )
+                                    Icon(Icons.Outlined.VerifiedUser, null, tint = Color(0xFF7090B8))
                                 },
-                                onClick = {
-                                    showMenu = false
-                                    onVerify()
-                                },
+                                onClick = { showMenu = false; onVerify() },
                             )
                             DropdownMenuItem(
                                 text = { Text("Delete game", color = GVRed) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = null,
-                                        tint = GVRed,
-                                    )
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    showDeleteDialog = true
-                                },
+                                leadingIcon = { Icon(Icons.Default.Delete, null, tint = GVRed) },
+                                onClick = { showMenu = false; showDeleteDialog = true },
                             )
                         }
                     }
                 }
                 downloadStatus?.done == true && downloadStatus.error != null -> {
                     IconButton(onClick = onDownload) {
-                        Icon(Icons.Default.ErrorOutline, contentDescription = "Retry", tint = GVRed)
+                        Icon(Icons.Default.ErrorOutline, "Retry", tint = GVRed)
                     }
                 }
                 else -> {
                     IconButton(onClick = onDownload) {
-                        Icon(Icons.Default.Download, contentDescription = "Download", tint = GVRed)
+                        Icon(Icons.Default.Download, "Download", tint = GVRed)
                     }
                 }
             }

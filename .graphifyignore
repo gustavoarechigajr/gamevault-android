@@ -1,0 +1,25 @@
+# Build artifacts
+build/
+.gradle/
+*.apk
+*.aab
+*.class
+*.jar
+*.aar
+
+# IDE
+.idea/
+*.iml
+
+# Git
+.git/
+
+# Generated
+**/generated/
+**/R.java
+**/BuildConfig.java
+
+# Misc
+__pycache__/
+*.pyc
+local.properties
