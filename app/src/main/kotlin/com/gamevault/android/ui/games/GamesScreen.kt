@@ -50,6 +50,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -377,7 +378,7 @@ fun GamesScreen(
                         }
                     }
 
-                    if (state.sortOrder == SortOrder.Alphabetical && searchQuery.isBlank()) {
+                    if (searchQuery.isBlank()) {
                         FastScrollBar(
                             games     = displayedGames,
                             listState = listState,
@@ -441,7 +442,8 @@ private fun FastScrollBar(
 ) {
     if (games.isEmpty()) return
 
-    val scope = rememberCoroutineScope()
+    val scope   = rememberCoroutineScope()
+    val density = LocalDensity.current
 
     val letterIndex = remember(games) {
         val map = LinkedHashMap<Char, Int>()
@@ -464,39 +466,75 @@ private fun FastScrollBar(
         scope.launch { listState.scrollToItem(target) }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxHeight()
-            .width(28.dp)
-            .background(Color(0x22000000), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
-            .onSizeChanged { barHeightPx = it.height.toFloat().coerceAtLeast(1f) }
-            .pointerInput(letters) {
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    scrollToY(down.position.y)
-                    do {
-                        val event  = awaitPointerEvent()
-                        val change = event.changes.firstOrNull()
-                        if (change != null && change.pressed) {
-                            change.consume()
-                            scrollToY(change.position.y)
-                        }
-                    } while (event.changes.any { it.pressed })
-                    activeIdx = -1
+    // When there are many unique first characters (e.g. numbered titles on GameCube),
+    // only label every Nth slot so letters stay readable. The active letter always shows.
+    val maxVisibleLabels = 20
+    val labelStep = if (letters.size > maxVisibleLabels)
+        (letters.size.toFloat() / maxVisibleLabels).toInt().coerceAtLeast(2)
+    else 1
+
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .width(28.dp)
+                .background(Color(0x22000000), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
+                .onSizeChanged { barHeightPx = it.height.toFloat().coerceAtLeast(1f) }
+                .pointerInput(letters) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        scrollToY(down.position.y)
+                        do {
+                            val event  = awaitPointerEvent()
+                            val change = event.changes.firstOrNull()
+                            if (change != null && change.pressed) {
+                                change.consume()
+                                scrollToY(change.position.y)
+                            }
+                        } while (event.changes.any { it.pressed })
+                        activeIdx = -1
+                    }
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            letters.forEachIndexed { i, letter ->
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val isActive = i == activeIdx
+                    if (isActive || i % labelStep == 0) {
+                        Text(
+                            text       = letter.toString(),
+                            fontSize   = 9.sp,
+                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                            color      = if (isActive) GVRed else Color(0xFF7090B8),
+                        )
+                    }
                 }
-            },
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        letters.forEachIndexed { i, letter ->
+            }
+        }
+
+        // Floating letter bubble shown while dragging — appears to the left of the bar
+        if (activeIdx in letters.indices) {
+            val yOffsetDp = with(density) {
+                ((activeIdx + 0.5f) / letters.size * barHeightPx).toDp() - 16.dp
+            }
             Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .absoluteOffset(x = (-36).dp, y = yOffsetDp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(GVRed)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text       = letter.toString(),
-                    fontSize   = 9.sp,
-                    fontWeight = if (i == activeIdx) FontWeight.Bold else FontWeight.Normal,
-                    color      = if (i == activeIdx) GVRed else Color(0xFF7090B8),
+                    text       = letters[activeIdx].toString(),
+                    color      = Color.White,
+                    fontSize   = 18.sp,
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }

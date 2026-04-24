@@ -4,6 +4,15 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-04-24
+
+### Fixed
+- **Scrollbar now consistent across all consoles** — was previously hidden when the sort order wasn't set to Alphabetical; now always visible (hidden only during search)
+- **Scrollbar letters now readable on large libraries** — consoles with many numbered/special-character titles (e.g. GameCube) no longer show dots; labels adapt to the available space and remain legible
+
+### Added
+- **Floating letter indicator** — while dragging the scrollbar, the current letter appears in a red bubble to the left of the bar; disappears on release
+
 ## [0.3.1] - 2026-04-24
 
 ### Fixed
