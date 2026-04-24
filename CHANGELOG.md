@@ -4,6 +4,13 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-04-23
+
+### Fixed
+- **Downloads survive navigation** — backing out of a platform screen no longer cancels in-progress downloads; they continue in the background and the progress UI re-syncs when you return
+- **Remote URL broken when local URL is set** — the app now probes the explicit local URL before using it; if unreachable (e.g. away from home), falls back to the remote URL automatically
+- **Login URL field not editable** — server URL field is now always visible on the login screen so it can be changed at any time
+
 ## [0.1.8] - 2026-04-23
 
 ### Added

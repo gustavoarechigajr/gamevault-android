@@ -5,12 +5,10 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gamevault.android.data.DownloadEntry
 import com.gamevault.android.data.DownloadRepository
 import com.gamevault.android.data.api.ApiClient
 import com.gamevault.android.data.model.GameItem
 import com.gamevault.android.data.model.GameMeta
-import com.gamevault.android.util.DownloadHelper
 import com.gamevault.android.util.PlatformMapper
 import com.gamevault.android.util.Prefs
 import com.gamevault.android.util.dataStore
@@ -79,9 +77,36 @@ class GamesViewModel : ViewModel() {
                 }
 
                 val localFiles = scanLocalFiles(context, platformId)
-                _state.update { it.copy(loading = false, platformName = body.platform.name, games = enriched, localFiles = localFiles) }
+                _state.update {
+                    it.copy(loading = false, platformName = body.platform.name, games = enriched, localFiles = localFiles)
+                }
+
+                // Mirror any in-progress or completed repo entries for this platform
+                observeRepoDownloads(enriched.map { it.name }.toSet())
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = e.message ?: "Unknown error") }
+            }
+        }
+    }
+
+    // Collect DownloadRepository updates and mirror them into local state so the
+    // progress UI stays live while on-screen and re-syncs when re-entering the screen.
+    private fun observeRepoDownloads(gameNames: Set<String>) {
+        viewModelScope.launch {
+            DownloadRepository.downloads.collect { allDownloads ->
+                val relevant = allDownloads.filterKeys { it in gameNames }
+                if (relevant.isEmpty()) return@collect
+                _state.update { s ->
+                    var newDownloads  = s.downloads
+                    var newLocalFiles = s.localFiles
+                    for ((key, entry) in relevant) {
+                        newDownloads = newDownloads + (key to DownloadStatus(key, entry.progress, entry.done, entry.error))
+                        if (entry.done && entry.error == null) {
+                            newLocalFiles = newLocalFiles + key
+                        }
+                    }
+                    s.copy(downloads = newDownloads, localFiles = newLocalFiles)
+                }
             }
         }
     }
@@ -98,62 +123,34 @@ class GamesViewModel : ViewModel() {
             val platformDir = root.findFile(folderName)
                 ?: return@withContext emptySet()
 
-            platformDir.listFiles()
-                .mapNotNull { it.name }
-                .toSet()
+            platformDir.listFiles().mapNotNull { it.name }.toSet()
         }
 
     fun download(context: Context, game: GameItem, platformId: String) {
-        val fileName = game.name
-        if (_state.value.downloads[fileName]?.done == false) return
+        if (DownloadRepository.downloads.value[game.name]?.done == false) return
 
         viewModelScope.launch {
-            val prefs = context.dataStore.data.first()
+            val prefs       = context.dataStore.data.first()
             val remote      = prefs[Prefs.SERVER_URL]    ?: ""
             val local       = prefs[Prefs.LOCAL_URL]     ?: ""
             val romsRootUri = prefs[Prefs.ROMS_ROOT_URI] ?: ""
 
             if (romsRootUri.isBlank()) {
                 _state.update {
-                    it.copy(downloads = it.downloads + (fileName to DownloadStatus(fileName, 0, true, "Set a ROMs folder in Settings first")))
+                    it.copy(downloads = it.downloads + (game.name to DownloadStatus(game.name, 0, true, "Set a ROMs folder in Settings first")))
                 }
                 return@launch
             }
 
             val (_, baseUrl) = ApiClient.getApiSmart(remote, local)
-            val platformName = _state.value.platformName
-            val gameTitle    = game.meta?.title ?: game.name
-
-            _state.update { it.copy(downloads = it.downloads + (fileName to DownloadStatus(fileName, 0))) }
-            DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, 0))
-
-            try {
-                DownloadHelper.download(
-                    context       = context,
-                    serverBaseUrl = baseUrl,
-                    filePath      = game.path,
-                    platformId    = platformId,
-                    romsRootUri   = romsRootUri,
-                    onProgress    = { pct ->
-                        _state.update { s ->
-                            s.copy(downloads = s.downloads + (fileName to DownloadStatus(fileName, pct)))
-                        }
-                        DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, pct))
-                    },
-                )
-                _state.update { s ->
-                    s.copy(
-                        downloads  = s.downloads + (fileName to DownloadStatus(fileName, 100, done = true)),
-                        localFiles = s.localFiles + fileName,
-                    )
-                }
-                DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, 100, done = true))
-            } catch (e: Exception) {
-                _state.update { s ->
-                    s.copy(downloads = s.downloads + (fileName to DownloadStatus(fileName, 0, done = true, error = e.message)))
-                }
-                DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, 0, done = true, error = e.message))
-            }
+            DownloadRepository.startDownload(
+                context       = context,
+                game          = game,
+                platformId    = platformId,
+                platformName  = _state.value.platformName,
+                serverBaseUrl = baseUrl,
+                romsRootUri   = romsRootUri,
+            )
         }
     }
 
@@ -170,10 +167,11 @@ class GamesViewModel : ViewModel() {
                 val platformDir = root.findFile(folderName) ?: return@withContext
                 platformDir.findFile(game.name)?.delete()
             }
+            DownloadRepository.remove(game.name)
             _state.update { s ->
                 s.copy(
                     localFiles = s.localFiles - game.name,
-                    downloads  = s.downloads - game.name,
+                    downloads  = s.downloads  - game.name,
                 )
             }
         }

@@ -1,5 +1,6 @@
 package com.gamevault.android.data.api
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -8,7 +9,6 @@ import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONObject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import android.util.Log
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -18,6 +18,11 @@ object ApiClient {
     private val cookieJar = PersistentCookieJar()
 
     @Volatile private var cachedUrl: String? = null
+
+    private val probeClient = OkHttpClient.Builder()
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(3, TimeUnit.SECONDS)
+        .build()
 
     private val mainClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)
@@ -48,11 +53,20 @@ object ApiClient {
 
     fun getApi(baseUrl: String): GameVaultApi = buildApi(baseUrl, mainClient)
 
-    /**
-     * Sends a UDP broadcast on port 7359 asking "who is gamevault?".
-     * The Windows PC relay service replies with {"address":"http://192.168.1.x:5555",...}.
-     * Returns the local address on success, null if no reply within 2 seconds.
-     */
+    // Returns true if a HEAD /login to the given URL succeeds within 3 seconds.
+    private suspend fun probeUrl(url: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("${url.trimEnd('/')}/login")
+                .head()
+                .build()
+            probeClient.newCall(request).execute().use { true }
+        } catch (e: Exception) {
+            Log.d("GameVaultProbe", "Probe failed for $url: $e")
+            false
+        }
+    }
+
     private suspend fun discoverViaUdp(): String? = withContext(Dispatchers.IO) {
         var socket: DatagramSocket? = null
         try {
@@ -85,27 +99,24 @@ object ApiClient {
     /**
      * Returns (api, chosenBaseUrl) using the fastest reachable server.
      *
-     * On each call:
-     *  1. If a cached URL exists for this session, return it immediately.
-     *  2. Send a UDP broadcast on port 7359 — the Windows PC relay responds with
-     *     the local LAN address (http://192.168.1.x:5555) within ~100ms if on the
-     *     same network.
-     *  3. If no UDP reply in 2 seconds, fall back to the remote DuckDNS URL.
-     *
-     * Cache is cleared on logout (clearSession) and on network change
-     * (invalidateUrlCache, called by ConnectivityManager.NetworkCallback in MainActivity),
-     * so the app always picks the right path as you move between home and away.
+     * Priority:
+     *  1. Cached URL from a previous call this session (cleared on network change / logout).
+     *  2. Explicit local URL (Settings → Local URL) — probed with HEAD /login first.
+     *     If the probe fails (e.g. user is away from home), falls back to remote.
+     *  3. UDP broadcast auto-discovery on port 7359.
+     *  4. Remote DuckDNS / public URL.
      */
     suspend fun getApiSmart(remoteUrl: String, localUrl: String): Pair<GameVaultApi, String> {
         val remote = remoteUrl.trim()
 
         cachedUrl?.let { return Pair(buildApi(it, mainClient), it.trimEnd('/')) }
 
-        // Try explicit local URL first if configured, then UDP broadcast, then remote
-        val chosen = if (localUrl.isNotBlank()) {
-            localUrl.trim()
-        } else {
-            discoverViaUdp() ?: remote
+        val chosen = when {
+            localUrl.isNotBlank() -> {
+                val trimmed = localUrl.trim()
+                if (probeUrl(trimmed)) trimmed else remote
+            }
+            else -> discoverViaUdp() ?: remote
         }
 
         cachedUrl = chosen
