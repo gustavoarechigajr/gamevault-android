@@ -4,6 +4,16 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-04-24
+
+### Fixed
+- **Dual-screen crash on back press** — resolved `ViewTreeLifecycleOwner` lifecycle 2.8 API change that caused a crash when navigating back while the second screen was active
+- **Controller key events and scrollbar** — D-pad scrolling and scroll bar interaction no longer conflict; key events are consumed correctly
+
+### Added
+- **Controller UX improvements** — search bar no longer auto-opens on D-pad focus; requires A/Enter or touch to activate. X button opens search from anywhere in the list. Y button downloads the focused game. Left/Right D-pad cycles through sort orders on a game row. Controller hint bar at the bottom shows A/B/X/Y bindings
+- **Rescan games** — Settings now has a Rescan button that scans all ROMs subfolders and marks found files as detected across all platform screens; fixes previously-downloaded games not showing as owned after reinstall or first-time setup
+
 ## [0.2.0] - 2026-04-23
 
 ### Fixed
