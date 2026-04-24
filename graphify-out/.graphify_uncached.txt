@@ -1,3 +1,0 @@
-/mnt/8a0d3363-aa14-4b24-ab6a-36c7252187cf/Projects/Gamevault app/gamevault-android/ARCHITECTURE.md
-/mnt/8a0d3363-aa14-4b24-ab6a-36c7252187cf/Projects/Gamevault app/gamevault-android/README.md
-/mnt/8a0d3363-aa14-4b24-ab6a-36c7252187cf/Projects/Gamevault app/gamevault-android/CHANGELOG.md
