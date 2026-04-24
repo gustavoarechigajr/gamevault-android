@@ -4,6 +4,13 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-04-23
+
+### Added
+- **Local file detection** — games already downloaded to the ROMs folder show a green checkmark instead of the download button; detected automatically on screen load via SAF
+- **Delete game** — tap the checkmark to open a confirmation dialog; deleting removes the file from the device and restores the download button
+- **In-app updates** — Settings → App → Check for Updates fetches the latest GitHub release, shows the version if newer, and downloads + installs the APK directly in-app
+
 ## [0.1.3] - 2026-04-21
 
 ### Fixed

@@ -9,7 +9,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gamevault.android.BuildConfig
 import com.gamevault.android.ui.theme.GVBackground
 import com.gamevault.android.ui.theme.GVRed
 import com.gamevault.android.ui.theme.GVSurface
@@ -135,6 +138,116 @@ fun SettingsScreen(
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
                 )
+            }
+
+            HorizontalDivider(color = Color(0xFF1C2A44))
+
+            // ── App ───────────────────────────────────────────────────────────
+            SettingSection(title = "App") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Version", color = Color(0xFF7090B8), fontSize = 13.sp)
+                    Text("v${BuildConfig.VERSION_NAME}", color = Color(0xFFDCE8FF), fontSize = 13.sp)
+                }
+
+                UpdateSection(
+                    updateState = state.updateState,
+                    onCheckForUpdate = { vm.checkForUpdate() },
+                    onDownloadAndInstall = { url -> vm.downloadAndInstall(context, url) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateSection(
+    updateState: UpdateState,
+    onCheckForUpdate: () -> Unit,
+    onDownloadAndInstall: (String) -> Unit,
+) {
+    when (updateState) {
+        is UpdateState.Idle -> {
+            OutlinedButton(
+                onClick = onCheckForUpdate,
+                shape = RoundedCornerShape(10.dp),
+                border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(Color(0xFF1C2A44))),
+            ) {
+                Icon(Icons.Default.SystemUpdateAlt, null, tint = Color(0xFF7090B8), modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Check for Updates", color = Color(0xFF7090B8))
+            }
+        }
+        is UpdateState.Checking -> {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = GVRed, strokeWidth = 2.dp)
+                Text("Checking for updates…", color = Color(0xFF7090B8), fontSize = 13.sp)
+            }
+        }
+        is UpdateState.UpToDate -> {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF22C55E), modifier = Modifier.size(18.dp))
+                Text("You're up to date", color = Color(0xFF22C55E), fontSize = 13.sp)
+            }
+        }
+        is UpdateState.Available -> {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Update available: ${updateState.version}",
+                    color = Color(0xFFDCE8FF),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Button(
+                    onClick = { onDownloadAndInstall(updateState.downloadUrl) },
+                    colors = ButtonDefaults.buttonColors(containerColor = GVRed),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Icon(Icons.Default.SystemUpdateAlt, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Download & Install ${updateState.version}")
+                }
+            }
+        }
+        is UpdateState.Downloading -> {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = GVRed, strokeWidth = 2.dp)
+                    Text(
+                        text = if (updateState.progress >= 0) "Downloading… ${updateState.progress}%" else "Downloading…",
+                        color = Color(0xFF7090B8),
+                        fontSize = 13.sp,
+                    )
+                }
+                if (updateState.progress >= 0) {
+                    LinearProgressIndicator(
+                        progress = { updateState.progress / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = GVRed,
+                        trackColor = Color(0xFF1C2A44),
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = GVRed,
+                        trackColor = Color(0xFF1C2A44),
+                    )
+                }
+            }
+        }
+        is UpdateState.Error -> {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(updateState.message, color = GVRed, fontSize = 12.sp)
+                OutlinedButton(
+                    onClick = onCheckForUpdate,
+                    shape = RoundedCornerShape(10.dp),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(Color(0xFF1C2A44))),
+                ) {
+                    Text("Retry", color = Color(0xFF7090B8))
+                }
             }
         }
     }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Search
@@ -107,9 +108,11 @@ fun GamesScreen(
                 ) {
                     items(displayedGames, key = { it.path }) { game ->
                         GameRow(
-                            game = game,
+                            game           = game,
                             downloadStatus = state.downloads[game.name],
-                            onDownload = { vm.download(context, game, platformId) },
+                            isOnDevice     = game.name in state.localFiles,
+                            onDownload     = { vm.download(context, game, platformId) },
+                            onDelete       = { vm.deleteGame(context, game, platformId) },
                         )
                     }
                 }
@@ -122,8 +125,39 @@ fun GamesScreen(
 private fun GameRow(
     game: GameItem,
     downloadStatus: DownloadStatus?,
+    isOnDevice: Boolean,
     onDownload: () -> Unit,
+    onDelete: () -> Unit,
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete game?", color = Color.White) },
+            text = {
+                Text(
+                    "This will remove \"${game.meta?.title ?: game.name}\" from your device.",
+                    color = Color(0xFFDCE8FF),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) {
+                    Text("Delete", color = GVRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", color = Color(0xFF7090B8))
+                }
+            },
+            containerColor = GVSurface,
+        )
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -171,7 +205,6 @@ private fun GameRow(
                     fontSize = 12.sp,
                 )
             }
-            // Show progress bar while downloading
             if (downloadStatus != null && !downloadStatus.done) {
                 Spacer(Modifier.height(4.dp))
                 if (downloadStatus.progress >= 0) {
@@ -204,12 +237,19 @@ private fun GameRow(
         }
 
         Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            val activeDownload = downloadStatus != null && !downloadStatus.done
             when {
-                downloadStatus != null && !downloadStatus.done -> {
-                    // progress is shown in the column; nothing here
+                activeDownload -> {
+                    // progress shown in column; nothing here
                 }
-                downloadStatus?.done == true && downloadStatus.error == null -> {
-                    Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded", tint = Color(0xFF4CAF50))
+                isOnDevice && downloadStatus?.error == null -> {
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "On device — tap to delete",
+                            tint = Color(0xFF4CAF50),
+                        )
+                    }
                 }
                 downloadStatus?.done == true && downloadStatus.error != null -> {
                     IconButton(onClick = onDownload) {

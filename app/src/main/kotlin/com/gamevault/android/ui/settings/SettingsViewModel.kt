@@ -6,8 +6,10 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gamevault.android.BuildConfig
 import com.gamevault.android.util.PlatformMapper
 import com.gamevault.android.util.Prefs
+import com.gamevault.android.util.UpdateHelper
 import com.gamevault.android.util.dataStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,12 +18,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+sealed class UpdateState {
+    object Idle        : UpdateState()
+    object Checking    : UpdateState()
+    object UpToDate    : UpdateState()
+    data class Available(val version: String, val downloadUrl: String) : UpdateState()
+    data class Downloading(val progress: Int) : UpdateState()  // -1 = indeterminate
+    data class Error(val message: String) : UpdateState()
+}
+
 data class SettingsState(
     val serverUrl: String = "",
     val localUrl: String = "",
     val romsRootUri: String = "",
     val folderStatus: String = "",
     val urlsSaved: Boolean = false,
+    val updateState: UpdateState = UpdateState.Idle,
 )
 
 class SettingsViewModel : ViewModel() {
@@ -33,8 +45,8 @@ class SettingsViewModel : ViewModel() {
             val prefs = context.dataStore.data.first()
             _state.update {
                 it.copy(
-                    serverUrl = prefs[Prefs.SERVER_URL] ?: "",
-                    localUrl  = prefs[Prefs.LOCAL_URL]  ?: "",
+                    serverUrl   = prefs[Prefs.SERVER_URL]    ?: "",
+                    localUrl    = prefs[Prefs.LOCAL_URL]     ?: "",
                     romsRootUri = prefs[Prefs.ROMS_ROOT_URI] ?: "",
                 )
             }
@@ -63,6 +75,46 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             Prefs.setRomsRootUri(context, uri)
             createEsFolders(context, uri)
+        }
+    }
+
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            _state.update { it.copy(updateState = UpdateState.Checking) }
+            try {
+                val release = UpdateHelper.fetchLatestRelease()
+                if (UpdateHelper.isNewer(release.tagName, BuildConfig.VERSION_NAME)) {
+                    val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk") }
+                    if (apkAsset != null) {
+                        _state.update { it.copy(updateState = UpdateState.Available(release.tagName, apkAsset.downloadUrl)) }
+                    } else {
+                        _state.update { it.copy(updateState = UpdateState.Error("No APK found in release ${release.tagName}")) }
+                    }
+                } else {
+                    _state.update { it.copy(updateState = UpdateState.UpToDate) }
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(updateState = UpdateState.Error(e.message ?: "Unknown error")) }
+            }
+        }
+    }
+
+    fun downloadAndInstall(context: Context, downloadUrl: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(updateState = UpdateState.Downloading(-1)) }
+            try {
+                val apkFile = UpdateHelper.downloadApk(
+                    context     = context,
+                    downloadUrl = downloadUrl,
+                    onProgress  = { pct ->
+                        _state.update { it.copy(updateState = UpdateState.Downloading(pct)) }
+                    },
+                )
+                UpdateHelper.installApk(context, apkFile)
+                _state.update { it.copy(updateState = UpdateState.Idle) }
+            } catch (e: Exception) {
+                _state.update { it.copy(updateState = UpdateState.Error(e.message ?: "Download failed")) }
+            }
         }
     }
 
