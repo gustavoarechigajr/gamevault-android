@@ -4,6 +4,12 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-04-24
+
+### Fixed
+- **Scrollbar invisible on PS2, PSP and other consoles** — the bar track background was too transparent (13% black) to see against the dark navy background; increased to a visible white tint
+- **Scrollbar letters still cramped on large numbered libraries** — games starting with numbers or symbols (007, 1000, 101...) each occupied their own slot, creating 36+ entries and making letters unreadably small; all non-letter titles now group under a single `#` slot, capping the bar at 27 entries maximum
+
 ## [0.3.2] - 2026-04-24
 
 ### Fixed

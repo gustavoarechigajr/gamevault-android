@@ -445,10 +445,13 @@ private fun FastScrollBar(
     val scope   = rememberCoroutineScope()
     val density = LocalDensity.current
 
+    // Normalize non-letter first chars (numbers, symbols) to '#' so the bar never
+    // exceeds 27 slots regardless of how many numbered titles a library has.
     val letterIndex = remember(games) {
         val map = LinkedHashMap<Char, Int>()
         games.forEachIndexed { idx, game ->
-            val c = (game.meta?.title ?: game.name).firstOrNull()?.uppercaseChar() ?: return@forEachIndexed
+            val raw = (game.meta?.title ?: game.name).firstOrNull()?.uppercaseChar()
+            val c   = if (raw?.isLetter() == true) raw else '#'
             if (c !in map) map[c] = idx
         }
         map
@@ -466,20 +469,13 @@ private fun FastScrollBar(
         scope.launch { listState.scrollToItem(target) }
     }
 
-    // When there are many unique first characters (e.g. numbered titles on GameCube),
-    // only label every Nth slot so letters stay readable. The active letter always shows.
-    val maxVisibleLabels = 20
-    val labelStep = if (letters.size > maxVisibleLabels)
-        (letters.size.toFloat() / maxVisibleLabels).toInt().coerceAtLeast(2)
-    else 1
-
     Box(modifier = modifier) {
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
                 .width(28.dp)
-                .background(Color(0x22000000), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
+                .background(Color(0x55FFFFFF), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
                 .onSizeChanged { barHeightPx = it.height.toFloat().coerceAtLeast(1f) }
                 .pointerInput(letters) {
                     awaitEachGesture {
@@ -504,14 +500,12 @@ private fun FastScrollBar(
                     contentAlignment = Alignment.Center,
                 ) {
                     val isActive = i == activeIdx
-                    if (isActive || i % labelStep == 0) {
-                        Text(
-                            text       = letter.toString(),
-                            fontSize   = 9.sp,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            color      = if (isActive) GVRed else Color(0xFF7090B8),
-                        )
-                    }
+                    Text(
+                        text       = letter.toString(),
+                        fontSize   = 9.sp,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                        color      = if (isActive) GVRed else Color(0xFF7090B8),
+                    )
                 }
             }
         }
