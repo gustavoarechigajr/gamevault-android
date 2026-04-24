@@ -4,6 +4,11 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-04-24
+
+### Fixed
+- **Scrollbar still ugly and unreadable** — white tint background clashed with the dark theme and made letters low-contrast; bar now uses the same dark navy panel color (`#1C2A44`) used throughout the app, with bright light-blue letters for clear contrast
+
 ## [0.3.3] - 2026-04-24
 
 ### Fixed

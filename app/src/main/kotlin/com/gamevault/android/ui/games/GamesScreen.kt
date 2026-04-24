@@ -475,7 +475,7 @@ private fun FastScrollBar(
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
                 .width(28.dp)
-                .background(Color(0x55FFFFFF), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
+                .background(Color(0xFF1C2A44), RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
                 .onSizeChanged { barHeightPx = it.height.toFloat().coerceAtLeast(1f) }
                 .pointerInput(letters) {
                     awaitEachGesture {
@@ -504,7 +504,7 @@ private fun FastScrollBar(
                         text       = letter.toString(),
                         fontSize   = 9.sp,
                         fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                        color      = if (isActive) GVRed else Color(0xFF7090B8),
+                        color      = if (isActive) GVRed else Color(0xFFDCE8FF),
                     )
                 }
             }
