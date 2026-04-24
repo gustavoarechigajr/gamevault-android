@@ -5,10 +5,11 @@ import android.os.Bundle
 import android.view.Display
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.gamevault.android.ui.theme.GameVaultTheme
 
 class SecondaryPresentation(
@@ -22,18 +23,20 @@ class SecondaryPresentation(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
         )
-        setContentView(ComposeView(activity).apply {
+        val cv = ComposeView(activity).apply {
             setViewCompositionStrategy(
                 ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool
             )
-            setContent {
-                // Share the Activity's lifecycle so collectAsState() works inside the Presentation
-                CompositionLocalProvider(LocalLifecycleOwner provides activity) {
-                    GameVaultTheme {
-                        SecondScreenUI()
-                    }
-                }
+            // Extension functions (lifecycle 2.8+) — must be set before window attach
+            setViewTreeLifecycleOwner(activity)
+            setViewTreeViewModelStoreOwner(activity)
+            setViewTreeSavedStateRegistryOwner(activity)
+        }
+        cv.setContent {
+            GameVaultTheme {
+                SecondScreenUI()
             }
-        })
+        }
+        setContentView(cv)
     }
 }

@@ -42,6 +42,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // Explicit dep so ViewTreeLifecycleOwner is on the compile classpath for SecondaryPresentation
+    implementation("androidx.lifecycle:lifecycle-runtime:2.8.6")
+    implementation("androidx.savedstate:savedstate:1.2.1")
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
