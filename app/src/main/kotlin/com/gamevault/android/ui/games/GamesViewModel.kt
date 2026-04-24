@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gamevault.android.data.DownloadEntry
+import com.gamevault.android.data.DownloadRepository
 import com.gamevault.android.data.api.ApiClient
 import com.gamevault.android.data.model.GameItem
 import com.gamevault.android.data.model.GameMeta
@@ -119,7 +121,11 @@ class GamesViewModel : ViewModel() {
             }
 
             val (_, baseUrl) = ApiClient.getApiSmart(remote, local)
+            val platformName = _state.value.platformName
+            val gameTitle    = game.meta?.title ?: game.name
+
             _state.update { it.copy(downloads = it.downloads + (fileName to DownloadStatus(fileName, 0))) }
+            DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, 0))
 
             try {
                 DownloadHelper.download(
@@ -132,6 +138,7 @@ class GamesViewModel : ViewModel() {
                         _state.update { s ->
                             s.copy(downloads = s.downloads + (fileName to DownloadStatus(fileName, pct)))
                         }
+                        DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, pct))
                     },
                 )
                 _state.update { s ->
@@ -140,10 +147,12 @@ class GamesViewModel : ViewModel() {
                         localFiles = s.localFiles + fileName,
                     )
                 }
+                DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, 100, done = true))
             } catch (e: Exception) {
                 _state.update { s ->
                     s.copy(downloads = s.downloads + (fileName to DownloadStatus(fileName, 0, done = true, error = e.message)))
                 }
+                DownloadRepository.upsert(DownloadEntry(fileName, fileName, gameTitle, platformName, 0, done = true, error = e.message))
             }
         }
     }

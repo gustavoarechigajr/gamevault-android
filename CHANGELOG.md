@@ -4,6 +4,11 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-04-23
+
+### Added
+- **Downloads screen** — new button in the top bar (with active-count badge) opens a screen showing all in-progress and recently completed downloads across all platforms; individual dismiss and "Clear completed" actions
+
 ## [0.1.7] - 2026-04-23
 
 ### Added

@@ -12,8 +12,8 @@ android {
         applicationId = "com.gamevault.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.1.7"
+        versionCode = 4
+        versionName = "0.1.8"
     }
 
     buildTypes {

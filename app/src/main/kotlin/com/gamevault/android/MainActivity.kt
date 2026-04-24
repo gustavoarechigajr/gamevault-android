@@ -22,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gamevault.android.data.api.ApiClient
 import com.gamevault.android.data.model.LoginRequest
+import com.gamevault.android.ui.downloads.DownloadsScreen
 import com.gamevault.android.ui.games.GamesScreen
 import com.gamevault.android.ui.login.LoginScreen
 import com.gamevault.android.ui.platforms.PlatformsScreen
@@ -107,8 +108,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("platforms") {
                             PlatformsScreen(
-                                onPlatformClick = { navController.navigate("games/$it") },
-                                onSettingsClick = { navController.navigate("settings") },
+                                onPlatformClick   = { navController.navigate("games/$it") },
+                                onSettingsClick   = { navController.navigate("settings") },
+                                onDownloadsClick  = { navController.navigate("downloads") },
                                 onLogout = {
                                     navController.navigate("login") {
                                         popUpTo("platforms") { inclusive = true }
@@ -122,6 +124,9 @@ class MainActivity : ComponentActivity() {
                                 platformId = platformId,
                                 onBack = { navController.popBackStack() },
                             )
+                        }
+                        composable("downloads") {
+                            DownloadsScreen(onBack = { navController.popBackStack() })
                         }
                         composable("settings") {
                             SettingsScreen(onBack = { navController.popBackStack() })

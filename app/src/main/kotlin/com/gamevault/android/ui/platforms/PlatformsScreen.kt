@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -23,8 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gamevault.android.data.DownloadRepository
 import com.gamevault.android.data.model.Platform
 import com.gamevault.android.ui.theme.GVBackground
+import com.gamevault.android.ui.theme.GVRed
 import com.gamevault.android.ui.theme.GVSurface
 import com.gamevault.android.util.PlatformMapper
 
@@ -33,11 +36,13 @@ import com.gamevault.android.util.PlatformMapper
 fun PlatformsScreen(
     onPlatformClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
+    onDownloadsClick: () -> Unit,
     onLogout: () -> Unit,
     vm: PlatformsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
+    val activeDownloadCount by DownloadRepository.downloads.collectAsState()
 
     LaunchedEffect(Unit) { vm.load(context) }
 
@@ -54,6 +59,20 @@ fun PlatformsScreen(
                     )
                 },
                 actions = {
+                    val activeCount = activeDownloadCount.values.count { !it.done }
+                    BadgedBox(
+                        badge = {
+                            if (activeCount > 0) {
+                                Badge(containerColor = GVRed) {
+                                    Text(activeCount.toString(), color = Color.White, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    ) {
+                        IconButton(onClick = onDownloadsClick) {
+                            Icon(Icons.Default.Download, contentDescription = "Downloads", tint = Color(0xFF7090B8))
+                        }
+                    }
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFF7090B8))
                     }
