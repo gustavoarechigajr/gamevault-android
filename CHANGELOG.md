@@ -4,6 +4,11 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-23
+
+### Fixed
+- **Downloads screen no longer jumps** — entries kept a stable position by preserving the original timestamp across progress updates; previously each tick generated a new timestamp causing constant reordering with multiple concurrent downloads
+
 ## [0.1.9] - 2026-04-23
 
 ### Fixed

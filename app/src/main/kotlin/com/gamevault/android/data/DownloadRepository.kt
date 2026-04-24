@@ -69,7 +69,10 @@ object DownloadRepository {
     }
 
     fun upsert(entry: DownloadEntry) {
-        _downloads.update { it + (entry.key to entry) }
+        _downloads.update { map ->
+            val preserved = entry.copy(timestamp = map[entry.key]?.timestamp ?: entry.timestamp)
+            map + (entry.key to preserved)
+        }
     }
 
     fun remove(key: String) {
