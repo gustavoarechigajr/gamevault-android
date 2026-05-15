@@ -12,7 +12,7 @@ Android client for the GameVault personal ROM library server. Browse and downloa
 
 ## Supported Platforms
 
-Nintendo Switch, PS1, PS2, PSP, PS Vita, GameCube, Wii, Wii U, 3DS, DS, N64, NES, SNES, Game Boy, GBA, GBC, Genesis / Mega Drive, Master System, Game Gear, Sega 32X, Sega CD, Saturn, Dreamcast, TurboGrafx-16, Atari 2600/7800, Atari Jaguar, Atari Lynx, Neo Geo, Arcade / MAME, PC
+Nintendo Switch, PS1, PS2, PS3, PSP, PS Vita, GameCube, Wii, Wii U, 3DS, DS, N64, NES, SNES, Game Boy, GBA, GBC, Genesis / Mega Drive, Master System, Game Gear, Sega 32X, Sega CD, Saturn, Dreamcast, TurboGrafx-16, Atari 2600/7800, Atari Jaguar, Atari Lynx, Neo Geo, Arcade / MAME, PC
 
 ## Requirements
 

@@ -4,6 +4,11 @@ All notable changes to GameVault Android will be documented here.
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-05-15
+
+### Added
+- **PlayStation 3 support** — PS3 now appears as a platform with its own icon; downloaded games sort into the `ps3/` EmulationStation folder automatically
+
 ## [0.3.4] - 2026-04-24
 
 ### Fixed
