@@ -51,6 +51,7 @@ object PlatformMapper {
     fun getDrawableRes(platformId: String): Int? = when (platformId) {
         "gba"              -> R.drawable.ic_platform_gba
         "ps2"              -> R.drawable.ic_platform_ps2
+        "ps3"              -> R.drawable.ic_platform_ps3
         "psx"              -> R.drawable.ic_platform_psx
         "psp"              -> R.drawable.ic_platform_psp
         "gamecube"         -> R.drawable.ic_platform_gamecube
